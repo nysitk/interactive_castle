@@ -92,10 +92,19 @@
         var yagura_steps = 5;
 
         var build_mode = false;
+        var edit_mode = false;
         var click_count = 0; // クリック回数のカウント
         var ref_point = new Array(5); // クリックした座標の保持
         const mouse_on_y0plane = new THREE.Vector3(); // カメラからカーソルのレイとy=0の平面の交点
         const mouse_on_2pplane = new THREE.Vector3(); // カメラからカーソルのレイと指定した2点を通るxz平面に垂直な平面の交点
+
+        const raycaster = new THREE.Raycaster();
+        var currentObj = undefined;
+        var currentSquare = undefined;
+
+        var ishigaki_geometry;
+        var yagura_geometry = [];
+
         window.onmousemove = function(e) {
           // 上向きベクトル算出
           var t = new THREE.Vector3(0, 1, 0).applyMatrix4(currentCamera.matrixWorld);
@@ -294,6 +303,51 @@
             // console.log(ref_point[0]);
           }
 
+          if (edit_mode) {
+            const element = e.target;
+            const width = element.offsetWidth;
+            const height = element.offsetHeight;
+            mouse.x = (mouseX / width) * 2 - 1;
+            mouse.y = -(mouseY / height) * 2 + 1;
+
+            raycaster.setFromCamera(mouse, currentCamera);
+            const intersects = raycaster.intersectObjects(scene.children);
+
+            if (intersects.length > 0) {
+              var obj = intersects[0].object;
+              var square = intersects[0].faceIndex;
+
+              if(currentObj != obj || currentSquare != square) {
+                if (square !== undefined) {
+                  if (currentObj && currentSquare) {
+                    currentObj.geometry.colorsNeedUpdate = true;
+                    currentObj.geometry.faces[currentSquare].color.set(0xCBC9D4);
+                    if (currentSquare == 10) currentObj.geometry.faces[11].color.set(0xCBC9D4);
+                    if (currentSquare == 11) currentObj.geometry.faces[10].color.set(0xCBC9D4);
+                  }
+
+                  if (square == 10 || square == 11) {
+                    obj.geometry.colorsNeedUpdate = true;
+                    obj.geometry.faces[square].color.set(0x00ff00);
+                    if (square == 10) obj.geometry.faces[11].color.set(0x00ff00);
+                    if (square == 11) obj.geometry.faces[10].color.set(0x00ff00);
+                  }
+
+                  currentObj = obj;
+                  currentSquare = square;
+                  console.log(square)
+                }
+              }
+            } else {
+              if (currentObj) {
+                currentObj.geometry.colorsNeedUpdate = true;
+                currentObj.geometry.faces[currentSquare].color.set(0xCBC9D4);
+                if (currentSquare == 10) currentObj.geometry.faces[11].color.set(0xCBC9D4);
+                if (currentSquare == 11) currentObj.geometry.faces[10].color.set(0xCBC9D4);
+              }
+            }
+          }
+
           render();
         }
 
@@ -345,6 +399,7 @@
                 ref_point[3].z - (ref_point[5].z - ref_point[2].z)
               );
               make_yagura();
+              make_hafu();
               click_count++;
             }
           }
@@ -394,8 +449,8 @@
           var material = new THREE.MeshNormalMaterial();
           //var material = new THREE.MeshPhongMaterial({color: 0x88FFFF});
           var material = new THREE.MeshBasicMaterial({color: 0xB69F84});
-          var mesh = new THREE.Mesh(geometry, material);
-          scene.add(mesh);
+          ishigaki_geometry = new THREE.Mesh(geometry, material);
+          scene.add(ishigaki_geometry);
         }
 
         function make_yagura_line() {
@@ -412,6 +467,7 @@
         function make_yagura() {
           var initA = ref_point[2].clone(), initB = ref_point[3].clone(), initC = ref_point[4].clone();
           var initD = ref_point[5].clone();
+          console.log(initA);
 
           var change_level = new THREE.Vector3(
             (initD.x - initB.x) / (yagura_steps - 1),
@@ -435,11 +491,16 @@
           for (let i=0; i<yagura_steps; i++) {
             var geometry = new THREE.Geometry();
 
+            if (i == yagura_steps - 1) {
+              C.y -= change_level.y / 2;
+              D.y = C.y;
+            }
+
             // 下側の四角
-            geometry.vertices.push(new THREE.Vector3(A.x, 0, A.z)); //V0
-            geometry.vertices.push(new THREE.Vector3(B.x, 0, A.z)); //V1
-            geometry.vertices.push(new THREE.Vector3(B.x, 0, B.z)); //V2
-            geometry.vertices.push(new THREE.Vector3(A.x, 0, B.z)); //V3
+            geometry.vertices.push(new THREE.Vector3(A.x, A.y, A.z)); //V0
+            geometry.vertices.push(new THREE.Vector3(B.x, A.y, A.z)); //V1
+            geometry.vertices.push(new THREE.Vector3(B.x, A.y, B.z)); //V2
+            geometry.vertices.push(new THREE.Vector3(A.x, A.y, B.z)); //V3
             // 上側の四角
             geometry.vertices.push(new THREE.Vector3(C.x, C.y, C.z)); //V4
             geometry.vertices.push(new THREE.Vector3(D.x, C.y, C.z)); //V5
@@ -469,11 +530,11 @@
             geometry.computeFaceNormals();
             geometry.computeVertexNormals();
 
-            var material = new THREE.MeshNormalMaterial();
+            // var material = new THREE.MeshNormalMaterial();
             //var material = new THREE.MeshPhongMaterial({color: 0x88FFFF});
-            var material = new THREE.MeshBasicMaterial({color: 0xCBC9D4});
-            var mesh = new THREE.Mesh(geometry, material);
-            scene.add(mesh);
+            var material = new THREE.MeshBasicMaterial({color: 0xCBC9D4, vertexColors: THREE.FaceColors});
+            yagura_geometry[i] = new THREE.Mesh(geometry, material);
+            scene.add(yagura_geometry[i]);
 
             A.x -= change_level.x;
             A.y += change_level.y;
@@ -490,6 +551,104 @@
           }
         }
 
+        function make_hafu() {
+          var initA = ref_point[2].clone(), initB = ref_point[3].clone(), initC = ref_point[4].clone();
+          var initD = ref_point[5].clone();
+          console.log(initA);
+
+          var change_level = new THREE.Vector3(
+            (initD.x - initB.x) / (yagura_steps - 1),
+            (initD.y - initB.y) / yagura_steps,
+            (initD.z - initB.z) / (yagura_steps - 1)
+          )
+
+          var A = new THREE.Vector3(
+            initA.x + change_level.x,
+            initA.y + 1 * change_level.y / 2,
+            initA.z + change_level.z,
+          )
+          var B = new THREE.Vector3(
+            initB.x - change_level.x,
+            initB.y + 1 * change_level.y / 2,
+            initB.z - change_level.z,
+          )
+          var C = new THREE.Vector3(
+            initA.x,
+            initA.y + change_level.y,
+            initA.z,
+          )
+          var D = new THREE.Vector3(
+            initB.x,
+            initB.y + change_level.y,
+            initB.z,
+          )
+
+          for (let i=0; i<yagura_steps; i++) {
+            var geometry = new THREE.Geometry();
+
+            if (i == yagura_steps - 1) {
+              C.y += change_level.y / 3;
+              D.y += change_level.y / 3;
+              C.z = (C.z + D.z) / 2;
+              D.z = C.z;
+            }
+
+            // 下側の四角
+            geometry.vertices.push(new THREE.Vector3(A.x, A.y, A.z)); //V0
+            geometry.vertices.push(new THREE.Vector3(B.x, A.y, A.z)); //V1
+            geometry.vertices.push(new THREE.Vector3(B.x, A.y, B.z)); //V2
+            geometry.vertices.push(new THREE.Vector3(A.x, A.y, B.z)); //V3
+            // 上側の四角
+            geometry.vertices.push(new THREE.Vector3(C.x, C.y, C.z)); //V4
+            geometry.vertices.push(new THREE.Vector3(D.x, C.y, C.z)); //V5
+            geometry.vertices.push(new THREE.Vector3(D.x, C.y, D.z)); //V6
+            geometry.vertices.push(new THREE.Vector3(C.x, C.y, D.z)); //V7
+
+             // V7-------V6
+             // |\       |\
+             // | V4-------V5
+             // V3-|-----V2-|
+             //  \ |       \|
+             //   V0--------V1
+
+            geometry.faces.push(new THREE.Face3( 0, 3, 1));
+            geometry.faces.push(new THREE.Face3( 1, 3, 2));
+            geometry.faces.push(new THREE.Face3( 0, 1, 4));
+            geometry.faces.push(new THREE.Face3( 1, 5, 4));
+            geometry.faces.push(new THREE.Face3( 1, 2, 5));
+            geometry.faces.push(new THREE.Face3( 2, 6, 5));
+            geometry.faces.push(new THREE.Face3( 2, 3, 6));
+            geometry.faces.push(new THREE.Face3( 3, 7, 6));
+            geometry.faces.push(new THREE.Face3( 3, 0, 7));
+            geometry.faces.push(new THREE.Face3( 0, 4, 7));
+            geometry.faces.push(new THREE.Face3( 4, 5, 6));
+            geometry.faces.push(new THREE.Face3( 4, 6, 7));
+
+            geometry.computeFaceNormals();
+            geometry.computeVertexNormals();
+
+            // var material = new THREE.MeshNormalMaterial();
+            //var material = new THREE.MeshPhongMaterial({color: 0x88FFFF});
+            var material = new THREE.MeshBasicMaterial({color: 0x444444, vertexColors: THREE.FaceColors});
+            yagura_geometry[i] = new THREE.Mesh(geometry, material);
+            scene.add(yagura_geometry[i]);
+
+            A.x -= change_level.x;
+            A.y += change_level.y;
+            A.z -= change_level.z;
+            B.x += change_level.x;
+            B.y += change_level.y;
+            B.z += change_level.z;
+            C.x -= change_level.x;
+            C.y += change_level.y;
+            C.z -= change_level.z;
+            D.x += change_level.x;
+            D.y += change_level.y;
+            D.z += change_level.z;
+          }
+
+        }
+
         window.addEventListener( 'resize', onWindowResize, false );
 
         window.addEventListener( 'keydown', function ( event ) {
@@ -499,6 +658,12 @@
               build_mode = !build_mode;
 
               console.log(build_mode);
+              break;
+
+            case 69: // E
+              edit_mode = !edit_mode;
+
+              console.log(edit_mode);
               break;
 
             case 81: // Q
