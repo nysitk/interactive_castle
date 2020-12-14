@@ -260,7 +260,7 @@
               ishigaki_line_vertices[4].push(new THREE.Vector3(D.x, C.y, D.z));
               ishigaki_line_vertices[4].push(new THREE.Vector3(C.x, C.y, D.z));
               ishigaki_line_vertices[4].push(new THREE.Vector3(C.x, C.y, C.z));
-              ishigaki_line_vertices[4].push(new THREE.Vector3(D.x, C.y, D.z));
+              // ishigaki_line_vertices[4].push(new THREE.Vector3(D.x, C.y, D.z));
 
               console.log(A);
 
@@ -331,7 +331,7 @@
               yagura_line_vertices[0].push(new THREE.Vector3(B.x, A.y, B.z));
               yagura_line_vertices[0].push(new THREE.Vector3(A.x, A.y, B.z));
               yagura_line_vertices[0].push(new THREE.Vector3(A.x, A.y, A.z));
-              yagura_line_vertices[0].push(new THREE.Vector3(B.x, A.y, B.z));
+              // yagura_line_vertices[0].push(new THREE.Vector3(B.x, A.y, B.z));
               yagura_line_vertices[1] = [];
               yagura_line_vertices[1].push(new THREE.Vector3(A.x, A.y, A.z));
               yagura_line_vertices[1].push(new THREE.Vector3(C.x, C.y, C.z));
@@ -350,7 +350,7 @@
               yagura_line_vertices[5].push(new THREE.Vector3(D.x, C.y, D.z));
               yagura_line_vertices[5].push(new THREE.Vector3(C.x, C.y, D.z));
               yagura_line_vertices[5].push(new THREE.Vector3(C.x, C.y, C.z));
-              yagura_line_vertices[5].push(new THREE.Vector3(D.x, C.y, D.z));
+              // yagura_line_vertices[5].push(new THREE.Vector3(D.x, C.y, D.z));
 
               for (let j=0; j<6; j++) {
                 let index = i * 6 + j;
@@ -392,7 +392,7 @@
               var obj = intersects[0].object;
               var square = intersects[0].faceIndex;
 
-              if(currentObj != obj || currentSquare != square) {
+              if (currentObj != obj || currentSquare != square) {
                 if (square !== undefined) {
                   if (currentObj && currentSquare) {
                     currentObj.geometry.colorsNeedUpdate = true;
@@ -458,6 +458,7 @@
               m.position.set(ref_point[3].x, ref_point[3].y, ref_point[3].z);
               // ref_point[3] ... 0と1の点を通る、地面に垂直な平面上の点。石垣の上面の1と同じ側にある点
               // ref_point[2] ... 3と対角線上にある点。石垣の上面の0と同じ側にある点
+              for (let i=0; i<5*ishigaki_steps; i++) scene.remove(ishigaki_line[i]);
               make_ishigaki();
               make_yagura_line();
               click_count++;
@@ -475,6 +476,7 @@
               );
               make_yagura();
               make_hafu();
+              remove_yagura_line();
               click_count++;
             }
           }
@@ -526,7 +528,7 @@
 
           function change_level(axis, sub) {
             if (axis == 1) {
-              return (initC.y - initA.y) / ishigaki_steps;
+              return h / ishigaki_steps;
             } else {
               return r(axis, sub) * h / ishigaki_steps;
             }
@@ -600,6 +602,12 @@
           }
         }
 
+        function remove_yagura_line() {
+          yagura_line.forEach(function(i) {
+            scene.remove(i);
+          })          
+        }
+
         function make_yagura() {
           var initA = ref_point[2].clone(), initB = ref_point[3].clone(), initC = ref_point[4].clone();
           var initD = ref_point[5].clone();
@@ -627,10 +635,10 @@
           for (let i=0; i<yagura_steps; i++) {
             var geometry = new THREE.Geometry();
 
-            if (i == yagura_steps - 1) {
-              C.y -= change_level.y / 2;
-              D.y = C.y;
-            }
+            // if (i == yagura_steps - 1) {
+            //   C.y -= change_level.y / 2;
+            //   D.y = C.y;
+            // }
 
             // 下側の四角
             geometry.vertices.push(new THREE.Vector3(A.x, A.y, A.z)); //V0
@@ -700,29 +708,33 @@
 
           var A = new THREE.Vector3(
             initA.x + change_level.x,
-            initA.y + 1 * change_level.y / 2,
+            initA.y + 1 * change_level.y / 1,
             initA.z + change_level.z,
           )
           var B = new THREE.Vector3(
             initB.x - change_level.x,
-            initB.y + 1 * change_level.y / 2,
+            initB.y + 1 * change_level.y / 1,
             initB.z - change_level.z,
           )
           var C = new THREE.Vector3(
-            initA.x,
-            initA.y + change_level.y,
-            initA.z,
+            initA.x - change_level.x,
+            initA.y + 3 * change_level.y / 2,
+            initA.z - change_level.z,
           )
           var D = new THREE.Vector3(
-            initB.x,
-            initB.y + change_level.y,
-            initB.z,
+            initB.x + change_level.x,
+            initB.y + 3 * change_level.y / 2,
+            initB.z + change_level.z,
           )
 
           for (let i=0; i<yagura_steps; i++) {
             var geometry = new THREE.Geometry();
 
             if (i == yagura_steps - 1) {
+              A.x -= 3 * change_level.x / 4;
+              B.x += 3 * change_level.x / 4;
+              C.x = A.x;
+              D.x = B.x;
               C.y += change_level.y / 3;
               D.y += change_level.y / 3;
               C.z = (C.z + D.z) / 2;
