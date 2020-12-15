@@ -96,6 +96,9 @@
         // 屋根の補助線
         var yane_line_exist = false;
         var yane_line = [];
+        // 垂木の補助線
+        var taruki_line_exist = false;
+        var taruki_line = [];
 
         var build_mode = false;
         var edit_mode = false;
@@ -418,7 +421,6 @@
               yagura_line[index].geometry.elementNeedUpdate = true;
               yagura_line[index].geometry.computeFaceNormals();
             }
-            console.log(i)
 
             A.x -= change_level.x;
             A.y += change_level.y;
@@ -472,37 +474,157 @@
             initB.z + change_level.z,
           )
 
+          var taruki_interval_x = -1 * change_level.x / 8;
+          if (taruki_interval_x == 0.0) taruki_interval_x = 0.1;
+          var taruki_interval_z = -1 * change_level.z / 8;
+          if (taruki_interval_z == 0.0) taruki_interval_z = 0.1;
+          var init_taruki_num_x = Math.round((initB.x - initA.x) / taruki_interval_x);
+          var init_taruki_num_z = Math.round((initB.z - initA.z) / taruki_interval_z);
+          var sei = change_level.y / 2 / init_taruki_num_x * 10;
+
+          remove_taruki_line();
+          var taruki_index = 0;
+
           for (let i=0; i<yagura_steps; i++) {
             var yane_line_vertices = [];
+            var taruki_line_vertices = [];
+
             yane_line_vertices[0] = [];
-            yane_line_vertices[0].push(new THREE.Vector3(A.x, A.y, A.z));
-            yane_line_vertices[0].push(new THREE.Vector3(B.x, A.y, A.z));
-            yane_line_vertices[0].push(new THREE.Vector3(B.x, A.y, B.z));
-            yane_line_vertices[0].push(new THREE.Vector3(A.x, A.y, B.z));
-            yane_line_vertices[0].push(new THREE.Vector3(A.x, A.y, A.z));
+
+            var taruki_num_x = Math.round((B.x - A.x) / taruki_interval_x);
+            var taruki_num_z = Math.round((B.z - A.z) / taruki_interval_z);
+
+            var yane_x = A.x;
+            var yane_y = A.y;
+            var yane_z = A.z;
+            for (let direction=0; direction<4; direction++) {
+              var taruki_num;
+
+              if (direction % 2 == 0) {
+                taruki_num = taruki_num_x;
+              } else {
+                taruki_num = taruki_num_z;
+              }
+
+              if (taruki_num > 100) taruki_num = 100;
+
+              var count = 0;
+
+              for (let j=0; j<taruki_num; j++) {
+                if (j < 8) {
+                  yane_y = A.y + sei * (8-j-1) * (8-j) / 8 / 7;
+                } else if (j > taruki_num - 8) {
+                  yane_y = A.y + sei * count * (count+1) / 8 / 7;
+                  // console.log(yane_y);
+                  count++;
+                } else {
+                  yane_y = A.y;
+                }
+                yane_line_vertices[0].push(new THREE.Vector3(yane_x, yane_y, yane_z));
+
+                if (j % 4 == 0) {
+                  taruki_line.push(new THREE.Line( new THREE.Geometry, new THREE.LineBasicMaterial({color: 0x0000FF})));
+                  var taruki_line_vertices = [];
+                  taruki_line_vertices.push(new THREE.Vector3(yane_x, yane_y, yane_z));
+                  if (direction==0) {
+                    var grad = (C.z - A.z) / (C.x - A.x);
+                    var chanz = (change_level.z > grad * (A.x - yane_x)) ? grad * (A.x - yane_x) : change_level.z;
+                    if (chanz == change_level.z) {
+                      grad = (C.z - A.z) / (D.x - B.x);
+                      chanz = (change_level.z > grad * (B.x - yane_x)) ? grad * (B.x - yane_x) : change_level.z;
+                    }
+                    taruki_line_vertices.push(new THREE.Vector3(yane_x, yane_y + change_level.y / 6 * chanz / change_level.z, yane_z - chanz));
+                  } else if (direction==1) {
+                    var grad = (D.x - B.x) / (C.z - A.z);
+                    var chanx = (change_level.x < grad * (yane_z - A.z)) ? grad * (yane_z - A.z) : change_level.x;
+                    if (chanx == change_level.x) {
+                      grad = (D.x - B.x) / (D.z - B.z);
+                      chanx = (change_level.x < grad * (yane_z - B.z)) ? grad * (yane_z - B.z) : change_level.x;
+                    }
+                    taruki_line_vertices.push(new THREE.Vector3(yane_x + chanx, yane_y + change_level.y / 6 * chanx / change_level.x, yane_z));
+                  } else if (direction==2) {
+                    var grad = (D.z - B.z) / (D.x - B.x);
+                    var chanz = (change_level.z > grad * (yane_x - B.x)) ? grad * (yane_x - B.x) : change_level.z;
+                    if (chanz == change_level.z) {
+                      grad = (D.z - B.z) / (C.x - A.x);
+                      chanz = (change_level.z > grad * (yane_x - A.x)) ? grad * (yane_x - A.x) : change_level.z;
+                    }
+                    taruki_line_vertices.push(new THREE.Vector3(yane_x, yane_y + change_level.y / 6 * chanz / change_level.z, yane_z + chanz));
+                  } else if (direction==3) {
+                    var grad = (C.x - A.x) / (D.z - B.z);
+                    var chanx = (change_level.x < grad * (B.z - yane_z)) ? grad * (B.z - yane_z) : change_level.x;
+                    if (chanx == change_level.x) {
+                      grad = (C.x - A.x) / (C.z - A.z);
+                      chanx = (change_level.x < grad * (A.z - yane_z)) ? grad * (A.z - yane_z) : change_level.x;
+                    }
+                    taruki_line_vertices.push(new THREE.Vector3(yane_x - chanx, yane_y + change_level.y / 6 * chanx / change_level.x, yane_z));
+                  }
+                  taruki_line[taruki_line.length - 1].geometry.vertices = taruki_line_vertices;
+                  scene.add(taruki_line[taruki_line.length - 1]);
+                }
+
+                if (direction==0) {
+                  yane_x += (B.x - A.x) / taruki_num;
+                } else if (direction==1) {
+                  yane_z += (B.z - A.z) / taruki_num;
+                } else if (direction==2) {
+                  yane_x -= (B.x - A.x) / taruki_num;
+                } else if (direction==3) {
+                  yane_z -= (B.z - A.z) / taruki_num;
+                }
+
+                taruki_index++;
+              }
+            }
+            yane_line_vertices[0].push(new THREE.Vector3(A.x, A.y + sei, A.z));
             // yane_line_vertices[0].push(new THREE.Vector3(B.x, A.y, B.z));
+            // yane_line_vertices[0].push(new THREE.Vector3(A.x, A.y, B.z));
+            // yane_line_vertices[0].push(new THREE.Vector3(A.x, A.y, A.z));
+            //// yane_line_vertices[0].push(new THREE.Vector3(B.x, A.y, B.z));
+
+            var sumimune_steps = 5;
+
+            function render_sumimune_line(vertices_array, Downx, Downy, Downz, Upx, Upy, Upz) {
+              var horizontal_distance = Math.sqrt(Math.pow(Upx - Downx, 2) + Math.pow(Upz - Downz, 2));
+              var grad = (Upy - (Downy + sei)) / Math.pow(horizontal_distance, 2);
+
+              var delta_x = (Upx - Downx) / sumimune_steps;
+              var delta_z = (Upz - Downz) / sumimune_steps;
+              var yane_x = Downx, yane_y = Downy + sei, yane_z = Downz;
+              for (let j=0; j<=sumimune_steps; j++) {
+                yane_y = Downy + sei + grad * Math.pow(j, 2) * (Math.pow(delta_x, 2) + Math.pow(delta_z, 2));
+                vertices_array.push(new THREE.Vector3(yane_x, yane_y, yane_z));
+                yane_x += delta_x;
+                yane_z += delta_z;
+              }
+            }
+
             yane_line_vertices[1] = [];
-            yane_line_vertices[1].push(new THREE.Vector3(A.x, A.y, A.z));
-            yane_line_vertices[1].push(new THREE.Vector3(C.x, C.y, C.z));
+            render_sumimune_line(yane_line_vertices[1], A.x, A.y, A.z, C.x, C.y, C.z);
+
             yane_line_vertices[2] = [];
-            yane_line_vertices[2].push(new THREE.Vector3(A.x, A.y, B.z));
-            yane_line_vertices[2].push(new THREE.Vector3(C.x, C.y, D.z));
+            render_sumimune_line(yane_line_vertices[2], A.x, A.y, B.z, C.x, C.y, D.z);
+            // yane_line_vertices[2].push(new THREE.Vector3(A.x, A.y, B.z));
+            // yane_line_vertices[2].push(new THREE.Vector3(C.x, C.y, D.z));
             yane_line_vertices[3] = [];
-            yane_line_vertices[3].push(new THREE.Vector3(B.x, B.y, B.z));
-            yane_line_vertices[3].push(new THREE.Vector3(D.x, D.y, D.z));
+            render_sumimune_line(yane_line_vertices[3], B.x, B.y, B.z, D.x, D.y, D.z);
+            // yane_line_vertices[3].push(new THREE.Vector3(B.x, B.y, B.z));
+            // yane_line_vertices[3].push(new THREE.Vector3(D.x, D.y, D.z));
             yane_line_vertices[4] = [];
-            yane_line_vertices[4].push(new THREE.Vector3(B.x, B.y, A.z));
-            yane_line_vertices[4].push(new THREE.Vector3(D.x, D.y, C.z));
+            render_sumimune_line(yane_line_vertices[4], B.x, A.y, A.z, D.x, C.y, C.z);
+            // yane_line_vertices[4].push(new THREE.Vector3(B.x, B.y, A.z));
+            // yane_line_vertices[4].push(new THREE.Vector3(D.x, D.y, C.z));
             yane_line_vertices[5] = [];
-            yane_line_vertices[5].push(new THREE.Vector3(C.x, C.y, C.z));
-            yane_line_vertices[5].push(new THREE.Vector3(D.x, C.y, C.z));
-            yane_line_vertices[5].push(new THREE.Vector3(D.x, C.y, D.z));
-            yane_line_vertices[5].push(new THREE.Vector3(C.x, C.y, D.z));
-            yane_line_vertices[5].push(new THREE.Vector3(C.x, C.y, C.z));
+            // yane_line_vertices[5].push(new THREE.Vector3(C.x, C.y, C.z));
+            // yane_line_vertices[5].push(new THREE.Vector3(D.x, C.y, C.z));
             // yane_line_vertices[5].push(new THREE.Vector3(D.x, C.y, D.z));
+            // yane_line_vertices[5].push(new THREE.Vector3(C.x, C.y, D.z));
+            // yane_line_vertices[5].push(new THREE.Vector3(C.x, C.y, C.z));
+            //// yane_line_vertices[5].push(new THREE.Vector3(D.x, C.y, D.z));
 
             for (let j=0; j<6; j++) {
               let index = i * 6 + j;
+              yane_line[index].geometry = new THREE.Geometry();
               yane_line[index].geometry.vertices = yane_line_vertices[j];
               yane_line[index].geometry.verticesNeedUpdate = true;
               yane_line[index].geometry.elementNeedUpdate = true;
@@ -707,8 +829,22 @@
           })
           yane_line = [];
           for (let i=0; i<yagura_steps*6; i++) {
-            yane_line[i] = (new THREE.Line( new THREE.Geometry, new THREE.LineBasicMaterial({color: 0xCCCCCC})));
+            yane_line[i] = (new THREE.Line( new THREE.Geometry, new THREE.LineBasicMaterial({color: 0x0000FF})));
             scene.add(yane_line[i]);
+          }
+        }
+
+        function remove_taruki_line() {
+          taruki_line.forEach(function(i) {
+            scene.remove(i);
+          })
+          taruki_line = [];
+        }
+
+        function add_taruki_line(taruki_num) {
+          for (let i=0; i<taruki_num; i++) {
+            taruki_line.push(new THREE.Line( new THREE.Geometry, new THREE.LineBasicMaterial({color: 0x0000FF})));
+            scene.add(taruki_line[taruki_line.length - 1]);
           }
         }
 
@@ -808,7 +944,6 @@
         function make_yane() {
           var initA = ref_point[2].clone(), initB = ref_point[3].clone(), initC = ref_point[4].clone();
           var initD = ref_point[5].clone();
-          console.log(initA);
 
           var change_level = new THREE.Vector3(
             (initD.x - initB.x) / (yagura_steps - 1),
@@ -905,6 +1040,93 @@
             D.z += change_level.z;
           }
 
+        }
+
+        function render_taruki_line() {
+          var initA = ref_point[2].clone(), initB = ref_point[3].clone(), initC = ref_point[4].clone();
+          var initD = ref_point[5].clone();
+
+          var change_level = new THREE.Vector3(
+            (initD.x - initB.x) / (yagura_steps - 1),
+            (initD.y - initB.y) / yagura_steps,
+            (initD.z - initB.z) / (yagura_steps - 1)
+          )
+
+          var A = new THREE.Vector3(
+            initA.x + change_level.x,
+            initA.y + 1 * change_level.y / 1,
+            initA.z + change_level.z,
+          )
+          var B = new THREE.Vector3(
+            initB.x - change_level.x,
+            initB.y + 1 * change_level.y / 1,
+            initB.z - change_level.z,
+          )
+          var C = new THREE.Vector3(
+            initA.x - change_level.x,
+            initA.y + 3 * change_level.y / 2,
+            initA.z - change_level.z,
+          )
+          var D = new THREE.Vector3(
+            initB.x + change_level.x,
+            initB.y + 3 * change_level.y / 2,
+            initB.z + change_level.z,
+          )
+
+          var taruki_interval_x = -1 * change_level.x / 8;
+          if (taruki_interval_x == 0.0) taruki_interval_x = 0.1;
+          var taruki_interval_z = -1 * change_level.z / 8;
+          if (taruki_interval_z == 0.0) taruki_interval_z = 0.1;
+          var init_taruki_num_x = Math.round((initB.x - initA.x) / taruki_interval_x);
+          var init_taruki_num_z = Math.round((initB.z - initA.z) / taruki_interval_z);
+          var sei = change_level.y / 2 / init_taruki_num_x * 10;
+
+          for (let i=0; i<yagura_steps; i++) {
+            var taruki_line_vertices = [];
+
+            var taruki_num_x = Math.round((B.x - A.x) / taruki_interval_x);
+            var taruki_num_z = Math.round((B.z - A.z) / taruki_interval_z);
+
+            var yane_x = A.x;
+            var yane_y = A.y;
+            var yane_z = A.z;
+
+            for (let direction=0; direction<4; direction++) {
+              var taruki_num;
+              if (direction % 2 == 0) {
+                taruki_num = taruki_num_x;
+              } else {
+                taruki_num = taruki_num_z;
+              }
+
+              if (taruki_num > 100) taruki_num = 100;
+
+              var count = 0;
+
+              for (let j=0; j<taruki_num; j++) {
+                if (j < 8) {
+                  yane_y = A.y + sei * (8-j-1) * (8-j) / 8 / 7;
+                } else if (j > taruki_num - 8) {
+                  yane_y = A.y + sei * count * (count+1) / 8 / 7;
+                  // console.log(yane_y);
+                  count++;
+                } else {
+                  yane_y = A.y;
+                }
+                yane_line_vertices[0].push(new THREE.Vector3(yane_x, yane_y, yane_z));
+
+                if (direction==0) {
+                  yane_x += (B.x - A.x) / taruki_num;
+                } else if (direction==1) {
+                  yane_z += (B.z - A.z) / taruki_num;
+                } else if (direction==2) {
+                  yane_x -= (B.x - A.x) / taruki_num;
+                } else if (direction==3) {
+                  yane_z -= (B.z - A.z) / taruki_num;
+                }
+              }
+            }
+          }
         }
 
         window.addEventListener( 'resize', onWindowResize, false );
