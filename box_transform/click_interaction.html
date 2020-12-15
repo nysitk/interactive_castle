@@ -93,6 +93,10 @@
         var yagura_line = [];
         var yagura_steps = 5;
 
+        // 屋根の補助線
+        var yane_line_exist = false;
+        var yane_line = [];
+
         var build_mode = false;
         var edit_mode = false;
         var click_count = 0; // クリック回数のカウント
@@ -295,84 +299,8 @@
             // console.log(t);
 
             if (yagura_line_exist == false) yagura_line_exist = true;
-
-            var initA = ref_point[2].clone(), initB = ref_point[3].clone()
-            var initD = mouse_on_2pplane.clone();
-            if (initD.x > initB.x) initD.x = initB.x;
-            if (initD.x < (initB.x + initA.x) / 2) initD.x = (initB.x + initA.x) / 2;
-            if (initD.y < initB.y) initD.y = initB.y;
-            if (initD.z < initB.z) initD.z = initB.z;
-            if (initD.z > (initB.z + initA.z) / 2) initD.z = (initB.z + initA.z) / 2;
-            var initC = new THREE.Vector3(initB.x - (initD.x - initA.x), initD.y, initB.z - (initD.z - initA.z));
-
-            var change_level = new THREE.Vector3(
-              (initD.x - initB.x) / (yagura_steps - 1),
-              (initD.y - initB.y) / yagura_steps,
-              (initD.z - initB.z) / (yagura_steps - 1)
-            )
-
-            var A = initA.clone();
-            var B = initB.clone();
-            var C = new THREE.Vector3(
-              initA.x,
-              initA.y + change_level.y,
-              initA.z,
-            )
-            var D = new THREE.Vector3(
-              initB.x,
-              initB.y + change_level.y,
-              initB.z,
-            )
-            for (let i=0; i<yagura_steps; i++) {
-              var yagura_line_vertices = [];
-              yagura_line_vertices[0] = [];
-              yagura_line_vertices[0].push(new THREE.Vector3(A.x, A.y, A.z));
-              yagura_line_vertices[0].push(new THREE.Vector3(B.x, A.y, A.z));
-              yagura_line_vertices[0].push(new THREE.Vector3(B.x, A.y, B.z));
-              yagura_line_vertices[0].push(new THREE.Vector3(A.x, A.y, B.z));
-              yagura_line_vertices[0].push(new THREE.Vector3(A.x, A.y, A.z));
-              // yagura_line_vertices[0].push(new THREE.Vector3(B.x, A.y, B.z));
-              yagura_line_vertices[1] = [];
-              yagura_line_vertices[1].push(new THREE.Vector3(A.x, A.y, A.z));
-              yagura_line_vertices[1].push(new THREE.Vector3(C.x, C.y, C.z));
-              yagura_line_vertices[2] = [];
-              yagura_line_vertices[2].push(new THREE.Vector3(A.x, A.y, B.z));
-              yagura_line_vertices[2].push(new THREE.Vector3(C.x, C.y, D.z));
-              yagura_line_vertices[3] = [];
-              yagura_line_vertices[3].push(new THREE.Vector3(B.x, B.y, B.z));
-              yagura_line_vertices[3].push(new THREE.Vector3(D.x, D.y, D.z));
-              yagura_line_vertices[4] = [];
-              yagura_line_vertices[4].push(new THREE.Vector3(B.x, B.y, A.z));
-              yagura_line_vertices[4].push(new THREE.Vector3(D.x, D.y, C.z));
-              yagura_line_vertices[5] = [];
-              yagura_line_vertices[5].push(new THREE.Vector3(C.x, C.y, C.z));
-              yagura_line_vertices[5].push(new THREE.Vector3(D.x, C.y, C.z));
-              yagura_line_vertices[5].push(new THREE.Vector3(D.x, C.y, D.z));
-              yagura_line_vertices[5].push(new THREE.Vector3(C.x, C.y, D.z));
-              yagura_line_vertices[5].push(new THREE.Vector3(C.x, C.y, C.z));
-              // yagura_line_vertices[5].push(new THREE.Vector3(D.x, C.y, D.z));
-
-              for (let j=0; j<6; j++) {
-                let index = i * 6 + j;
-                yagura_line[index].geometry.vertices = yagura_line_vertices[j];
-                yagura_line[index].geometry.verticesNeedUpdate = true;
-                yagura_line[index].geometry.elementNeedUpdate = true;
-                yagura_line[index].geometry.computeFaceNormals();
-              }
-
-              A.x -= change_level.x;
-              A.y += change_level.y;
-              A.z -= change_level.z;
-              B.x += change_level.x;
-              B.y += change_level.y;
-              B.z += change_level.z;
-              C.x -= change_level.x;
-              C.y += change_level.y;
-              C.z -= change_level.z;
-              D.x += change_level.x;
-              D.y += change_level.y;
-              D.z += change_level.z;
-            }
+            render_yagura_line();
+            render_yane_line();
           } else {
             mesh.position.set(mouse_on_y0plane.x, mouse_on_y0plane.y, mouse_on_y0plane.z);
             // console.log(ref_point[0]);
@@ -426,6 +354,176 @@
           render();
         }
 
+        function render_yagura_line() {
+          var initA = ref_point[2].clone(), initB = ref_point[3].clone()
+          var initD = mouse_on_2pplane.clone();
+          if (initD.x > initB.x) initD.x = initB.x;
+          if (initD.x < (initB.x + initA.x) / 2) initD.x = (initB.x + initA.x) / 2;
+          if (initD.y < initB.y) initD.y = initB.y;
+          if (initD.z < initB.z) initD.z = initB.z;
+          if (initD.z > (initB.z + initA.z) / 2) initD.z = (initB.z + initA.z) / 2;
+          var initC = new THREE.Vector3(initB.x - (initD.x - initA.x), initD.y, initB.z - (initD.z - initA.z));
+
+          var change_level = new THREE.Vector3(
+            (initD.x - initB.x) / (yagura_steps - 1),
+            (initD.y - initB.y) / yagura_steps,
+            (initD.z - initB.z) / (yagura_steps - 1)
+          )
+
+          var A = initA.clone();
+          var B = initB.clone();
+          var C = new THREE.Vector3(
+            initA.x,
+            initA.y + change_level.y,
+            initA.z,
+          )
+          var D = new THREE.Vector3(
+            initB.x,
+            initB.y + change_level.y,
+            initB.z,
+          )
+          for (let i=0; i<yagura_steps; i++) {
+            var yagura_line_vertices = [];
+            yagura_line_vertices[0] = [];
+            yagura_line_vertices[0].push(new THREE.Vector3(A.x, A.y, A.z));
+            yagura_line_vertices[0].push(new THREE.Vector3(B.x, A.y, A.z));
+            yagura_line_vertices[0].push(new THREE.Vector3(B.x, A.y, B.z));
+            yagura_line_vertices[0].push(new THREE.Vector3(A.x, A.y, B.z));
+            yagura_line_vertices[0].push(new THREE.Vector3(A.x, A.y, A.z));
+            // yagura_line_vertices[0].push(new THREE.Vector3(B.x, A.y, B.z));
+            yagura_line_vertices[1] = [];
+            yagura_line_vertices[1].push(new THREE.Vector3(A.x, A.y, A.z));
+            yagura_line_vertices[1].push(new THREE.Vector3(C.x, C.y, C.z));
+            yagura_line_vertices[2] = [];
+            yagura_line_vertices[2].push(new THREE.Vector3(A.x, A.y, B.z));
+            yagura_line_vertices[2].push(new THREE.Vector3(C.x, C.y, D.z));
+            yagura_line_vertices[3] = [];
+            yagura_line_vertices[3].push(new THREE.Vector3(B.x, B.y, B.z));
+            yagura_line_vertices[3].push(new THREE.Vector3(D.x, D.y, D.z));
+            yagura_line_vertices[4] = [];
+            yagura_line_vertices[4].push(new THREE.Vector3(B.x, B.y, A.z));
+            yagura_line_vertices[4].push(new THREE.Vector3(D.x, D.y, C.z));
+            yagura_line_vertices[5] = [];
+            yagura_line_vertices[5].push(new THREE.Vector3(C.x, C.y, C.z));
+            yagura_line_vertices[5].push(new THREE.Vector3(D.x, C.y, C.z));
+            yagura_line_vertices[5].push(new THREE.Vector3(D.x, C.y, D.z));
+            yagura_line_vertices[5].push(new THREE.Vector3(C.x, C.y, D.z));
+            yagura_line_vertices[5].push(new THREE.Vector3(C.x, C.y, C.z));
+            // yagura_line_vertices[5].push(new THREE.Vector3(D.x, C.y, D.z));
+
+            for (let j=0; j<6; j++) {
+              let index = i * 6 + j;
+              yagura_line[index].geometry.vertices = yagura_line_vertices[j];
+              yagura_line[index].geometry.verticesNeedUpdate = true;
+              yagura_line[index].geometry.elementNeedUpdate = true;
+              yagura_line[index].geometry.computeFaceNormals();
+            }
+            console.log(i)
+
+            A.x -= change_level.x;
+            A.y += change_level.y;
+            A.z -= change_level.z;
+            B.x += change_level.x;
+            B.y += change_level.y;
+            B.z += change_level.z;
+            C.x -= change_level.x;
+            C.y += change_level.y;
+            C.z -= change_level.z;
+            D.x += change_level.x;
+            D.y += change_level.y;
+            D.z += change_level.z;
+          }
+        }
+
+        function render_yane_line() {
+          var initA = ref_point[2].clone(), initB = ref_point[3].clone()
+          var initD = mouse_on_2pplane.clone();
+          if (initD.x > initB.x) initD.x = initB.x;
+          if (initD.x < (initB.x + initA.x) / 2) initD.x = (initB.x + initA.x) / 2;
+          if (initD.y < initB.y) initD.y = initB.y;
+          if (initD.z < initB.z) initD.z = initB.z;
+          if (initD.z > (initB.z + initA.z) / 2) initD.z = (initB.z + initA.z) / 2;
+          var initC = new THREE.Vector3(initB.x - (initD.x - initA.x), initD.y, initB.z - (initD.z - initA.z));
+
+          var change_level = new THREE.Vector3(
+            (initD.x - initB.x) / (yagura_steps - 1),
+            (initD.y - initB.y) / yagura_steps,
+            (initD.z - initB.z) / (yagura_steps - 1)
+          )
+
+          var A = new THREE.Vector3(
+            initA.x + change_level.x,
+            initA.y + 1 * change_level.y / 1,
+            initA.z + change_level.z,
+          )
+          var B = new THREE.Vector3(
+            initB.x - change_level.x,
+            initB.y + 1 * change_level.y / 1,
+            initB.z - change_level.z,
+          )
+          var C = new THREE.Vector3(
+            initA.x - change_level.x,
+            initA.y + 3 * change_level.y / 2,
+            initA.z - change_level.z,
+          )
+          var D = new THREE.Vector3(
+            initB.x + change_level.x,
+            initB.y + 3 * change_level.y / 2,
+            initB.z + change_level.z,
+          )
+
+          for (let i=0; i<yagura_steps; i++) {
+            var yane_line_vertices = [];
+            yane_line_vertices[0] = [];
+            yane_line_vertices[0].push(new THREE.Vector3(A.x, A.y, A.z));
+            yane_line_vertices[0].push(new THREE.Vector3(B.x, A.y, A.z));
+            yane_line_vertices[0].push(new THREE.Vector3(B.x, A.y, B.z));
+            yane_line_vertices[0].push(new THREE.Vector3(A.x, A.y, B.z));
+            yane_line_vertices[0].push(new THREE.Vector3(A.x, A.y, A.z));
+            // yane_line_vertices[0].push(new THREE.Vector3(B.x, A.y, B.z));
+            yane_line_vertices[1] = [];
+            yane_line_vertices[1].push(new THREE.Vector3(A.x, A.y, A.z));
+            yane_line_vertices[1].push(new THREE.Vector3(C.x, C.y, C.z));
+            yane_line_vertices[2] = [];
+            yane_line_vertices[2].push(new THREE.Vector3(A.x, A.y, B.z));
+            yane_line_vertices[2].push(new THREE.Vector3(C.x, C.y, D.z));
+            yane_line_vertices[3] = [];
+            yane_line_vertices[3].push(new THREE.Vector3(B.x, B.y, B.z));
+            yane_line_vertices[3].push(new THREE.Vector3(D.x, D.y, D.z));
+            yane_line_vertices[4] = [];
+            yane_line_vertices[4].push(new THREE.Vector3(B.x, B.y, A.z));
+            yane_line_vertices[4].push(new THREE.Vector3(D.x, D.y, C.z));
+            yane_line_vertices[5] = [];
+            yane_line_vertices[5].push(new THREE.Vector3(C.x, C.y, C.z));
+            yane_line_vertices[5].push(new THREE.Vector3(D.x, C.y, C.z));
+            yane_line_vertices[5].push(new THREE.Vector3(D.x, C.y, D.z));
+            yane_line_vertices[5].push(new THREE.Vector3(C.x, C.y, D.z));
+            yane_line_vertices[5].push(new THREE.Vector3(C.x, C.y, C.z));
+            // yane_line_vertices[5].push(new THREE.Vector3(D.x, C.y, D.z));
+
+            for (let j=0; j<6; j++) {
+              let index = i * 6 + j;
+              yane_line[index].geometry.vertices = yane_line_vertices[j];
+              yane_line[index].geometry.verticesNeedUpdate = true;
+              yane_line[index].geometry.elementNeedUpdate = true;
+              yane_line[index].geometry.computeFaceNormals();
+            }
+
+            A.x -= change_level.x;
+            A.y += change_level.y;
+            A.z -= change_level.z;
+            B.x += change_level.x;
+            B.y += change_level.y;
+            B.z += change_level.z;
+            C.x -= change_level.x;
+            C.y += change_level.y;
+            C.z -= change_level.z;
+            D.x += change_level.x;
+            D.y += change_level.y;
+            D.z += change_level.z;
+          }
+        }
+
         window.addEventListener('click', function(e) {
           if (build_mode) {
             if (click_count == 0) {
@@ -461,6 +559,7 @@
               for (let i=0; i<5*ishigaki_steps; i++) scene.remove(ishigaki_line[i]);
               make_ishigaki();
               make_yagura_line();
+              make_yane_line();
               click_count++;
             } else if (click_count == 3) {
               ref_point[5] = mouse_on_2pplane.clone();
@@ -475,7 +574,7 @@
                 ref_point[3].z - (ref_point[5].z - ref_point[2].z)
               );
               make_yagura();
-              make_hafu();
+              // make_yane();
               remove_yagura_line();
               click_count++;
             }
@@ -602,6 +701,17 @@
           }
         }
 
+        function make_yane_line() {
+          yane_line.forEach(function(i) {
+            scene.remove(i);
+          })
+          yane_line = [];
+          for (let i=0; i<yagura_steps*6; i++) {
+            yane_line[i] = (new THREE.Line( new THREE.Geometry, new THREE.LineBasicMaterial({color: 0xCCCCCC})));
+            scene.add(yane_line[i]);
+          }
+        }
+
         function remove_yagura_line() {
           yagura_line.forEach(function(i) {
             scene.remove(i);
@@ -695,7 +805,7 @@
           }
         }
 
-        function make_hafu() {
+        function make_yane() {
           var initA = ref_point[2].clone(), initB = ref_point[3].clone(), initC = ref_point[4].clone();
           var initD = ref_point[5].clone();
           console.log(initA);
