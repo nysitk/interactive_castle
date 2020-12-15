@@ -99,6 +99,12 @@
         // 垂木の補助線
         var taruki_line_exist = false;
         var taruki_line = [];
+        // 入母屋破風の補助線
+        var irimoya_line_exist = false;
+        var irimoya_line = [];
+        // 千鳥破風の補助線
+        var hafu_line_exist = false;
+        var hafu_line = [];
 
         var build_mode = false;
         var edit_mode = false;
@@ -483,6 +489,12 @@
           var sei = change_level.y / 2 / init_taruki_num_x * 10;
 
           remove_taruki_line();
+
+          hafu_line.forEach(function(it) {
+            scene.remove(it);
+          });
+          hafu_line = [];
+
           var taruki_index = 0;
 
           for (let i=0; i<yagura_steps; i++) {
@@ -629,6 +641,117 @@
               yane_line[index].geometry.verticesNeedUpdate = true;
               yane_line[index].geometry.elementNeedUpdate = true;
               yane_line[index].geometry.computeFaceNormals();
+            }
+
+            if (i == 0 && i != yagura_steps - 1) {
+              var hafu_ren = (A.z - B.z) / 5;
+              var hafu_start = A.z - (A.z - B.z) / 2;
+              var hafu_line_vertices = [];
+              hafu_line_vertices[0] = [];
+              hafu_line_vertices[1] = [];
+              var hafu_steps = 6;
+
+              var alpha = 0.45;
+              var rho1 = 0.3, rho2 = 0.6, theta = Math.atan(0.28), H = hafu_ren * Math.tan(theta);
+              var L = hafu_ren / Math.cos(theta), Dist = 0.08 * L;
+              var hafu_z = new THREE.Vector2();
+              var hafu_point = new THREE.Vector2();
+              for (let j=0; j<=hafu_steps*2; j++) {
+                if (j<=hafu_steps) {
+                  var r1 = rho1 * Dist;
+                  hafu_z.x = alpha * j * L / hafu_steps;
+                  hafu_z.y = r1 * Math.sin(Math.PI * j / hafu_steps);
+
+                } else {
+                  var r2 = rho2 * Dist;
+                  hafu_z.x = (alpha * hafu_steps + (1 - alpha) * (j - hafu_steps)) * L / hafu_steps;
+                  hafu_z.y = r2 * Math.sin(Math.PI * j / hafu_steps);
+                }
+                  hafu_point.x = hafu_z.x * Math.cos(theta) + hafu_z.y * Math.sin(theta);
+                  hafu_point.y = H - hafu_z.x * Math.sin(theta) + hafu_z.y * Math.cos(theta);
+                  hafu_line_vertices[0].push(new THREE.Vector3(B.x, B.y + hafu_point.y, hafu_start + hafu_point.x));
+                  hafu_line_vertices[1].push(new THREE.Vector3(B.x, B.y + hafu_point.y, hafu_start - hafu_point.x));
+              }
+
+              hafu_line.push(new THREE.Line( new THREE.Geometry, new THREE.LineBasicMaterial({color: 0x0000FF})));
+              hafu_line[0].geometry.vertices = hafu_line_vertices[0];
+              scene.add(hafu_line[0]);
+              hafu_line.push(new THREE.Line( new THREE.Geometry, new THREE.LineBasicMaterial({color: 0x0000FF})));
+              hafu_line[1].geometry.vertices = hafu_line_vertices[1];
+              scene.add(hafu_line[1]);
+            }
+
+            if (i == 1 && i != yagura_steps - 1) {
+              var hafu_ren = (B.x - A.x) / 2;
+              var hafu_start = A.x + (B.x - A.x) / 2 - hafu_ren / 2;
+              var hafu_line_vertices = [];
+              hafu_line_vertices[0] = [];
+              var hafu_steps = 5;
+              var hafu_x = hafu_start, hafu_y, hafu_z = A.z - change_level.z / 3;
+              var L = Math.sqrt(Math.pow(hafu_ren / 2, 2) + Math.pow(change_level.y, 2));
+              var theta = Math.atan(change_level.y / (hafu_ren / 2));
+              var alpha = 0.5;
+              for (let j=0; j<=hafu_steps*2; j++) {
+                var step = j <= hafu_steps ? j : hafu_steps*2 - j;
+                hafu_y = A.y + step * L / hafu_steps * (Math.sin(theta) - alpha * (hafu_steps - step) / hafu_steps * Math.cos(theta));
+                hafu_line_vertices[0].push(new THREE.Vector3(hafu_x, hafu_y, hafu_z));
+                hafu_x += hafu_ren / 2 / hafu_steps;
+              }
+
+              hafu_line.push(new THREE.Line( new THREE.Geometry, new THREE.LineBasicMaterial({color: 0x0000FF})));
+              hafu_line[hafu_line.length - 1].geometry.vertices = hafu_line_vertices[0];
+              scene.add(hafu_line[hafu_line.length - 1]);
+            }
+
+            if (i == yagura_steps - 1) {
+              A.x -= 3 * change_level.x / 4;
+              B.x += 3 * change_level.x / 4;
+              A.z -= 3 * change_level.z / 4;
+              B.z += 3 * change_level.z / 4;
+              C.x = A.x;
+              D.x = B.x;
+              C.y += change_level.y / 3;
+              D.y += change_level.y / 3;
+              C.z = (C.z + D.z) / 2;
+              D.z = C.z;
+
+              var irimoya_line_vertices = [];
+              irimoya_line_vertices[0] = [];
+              irimoya_line_vertices[1] = [];
+              irimoya_line_vertices[2] = [];
+              var irimoya_steps = 5;
+              var irimoya_z = A.z, irimoya_y = A.y;
+              var L = Math.sqrt(Math.pow(C.z - A.z, 2) + Math.pow(C.y - A.y, 2));
+              var theta = -1 * Math.atan((C.y - A.y) / (C.z - A.z));
+              var alpha = 0.5;
+              for (let j=0; j<=irimoya_steps*2; j++) {
+                var step = j <= irimoya_steps ? j : irimoya_steps*2 - j;
+                irimoya_y = A.y + step * L / irimoya_steps * (Math.sin(theta) - alpha * (irimoya_steps - step) / irimoya_steps * Math.cos(theta));
+                irimoya_line_vertices[0].push(new THREE.Vector3(A.x, irimoya_y, irimoya_z));
+                irimoya_z += (C.z - A.z) / irimoya_steps;
+              }
+
+              irimoya_z = A.z;
+              for (let j=0; j<=irimoya_steps*2; j++) {
+                var step = j <= irimoya_steps ? j : irimoya_steps*2 - j;
+                irimoya_y = A.y + step * L / irimoya_steps * (Math.sin(theta) - alpha * (irimoya_steps - step) / irimoya_steps * Math.cos(theta));
+                irimoya_line_vertices[1].push(new THREE.Vector3(B.x, irimoya_y, irimoya_z));
+                irimoya_z += (C.z - A.z) / irimoya_steps;
+              }
+
+              irimoya_line_vertices[2].push(new THREE.Vector3(C.x, C.y, C.z));
+              irimoya_line_vertices[2].push(new THREE.Vector3(D.x, D.y, D.z));
+
+              irimoya_line.forEach(function(it) {
+                scene.remove(it);
+              })
+
+              irimoya_line = [];
+              for (let j=0; j<3; j++) {
+                irimoya_line.push(new THREE.Line( new THREE.Geometry, new THREE.LineBasicMaterial({color: 0x0000FF})));
+                irimoya_line[j].geometry.vertices = irimoya_line_vertices[j];
+                scene.add(irimoya_line[j]);
+              }
             }
 
             A.x -= change_level.x;
@@ -857,7 +980,6 @@
         function make_yagura() {
           var initA = ref_point[2].clone(), initB = ref_point[3].clone(), initC = ref_point[4].clone();
           var initD = ref_point[5].clone();
-          console.log(initA);
 
           var change_level = new THREE.Vector3(
             (initD.x - initB.x) / (yagura_steps - 1),
