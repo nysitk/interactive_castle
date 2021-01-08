@@ -119,6 +119,7 @@
 
         var ishigaki_geometry = [];
         var yagura_geometry = [];
+        var irimoya_geometry = [];
 
         window.onmousemove = function(e) {
           // 上向きベクトル算出
@@ -728,6 +729,7 @@
                 var step = j <= irimoya_steps ? j : irimoya_steps*2 - j;
                 irimoya_y = A.y + step * L / irimoya_steps * (Math.sin(theta) - alpha * (irimoya_steps - step) / irimoya_steps * Math.cos(theta));
                 irimoya_line_vertices[0].push(new THREE.Vector3(A.x, irimoya_y, irimoya_z));
+                irimoya_line_vertices[1].push(new THREE.Vector3(B.x, irimoya_y, irimoya_z));
                 irimoya_z += (C.z - A.z) / irimoya_steps;
               }
 
@@ -735,7 +737,6 @@
               for (let j=0; j<=irimoya_steps*2; j++) {
                 var step = j <= irimoya_steps ? j : irimoya_steps*2 - j;
                 irimoya_y = A.y + step * L / irimoya_steps * (Math.sin(theta) - alpha * (irimoya_steps - step) / irimoya_steps * Math.cos(theta));
-                irimoya_line_vertices[1].push(new THREE.Vector3(B.x, irimoya_y, irimoya_z));
                 irimoya_z += (C.z - A.z) / irimoya_steps;
               }
 
@@ -894,7 +895,7 @@
 
                       var material = new THREE.MeshBasicMaterial({color: 0x555555});
                       var taruki_mesh = new THREE.Mesh(taruki, material);
-                      scene.add(taruki_mesh);
+                      // scene.add(taruki_mesh);
 
                     }
 
@@ -958,6 +959,8 @@
                 if (j+2 > yane_geometry.vertices.length - 1) break;
                 yane_geometry.faces.push(new THREE.Face3(j, j+2, j+3));
                 yane_geometry.faces.push(new THREE.Face3(j, j+3, j+1));
+                yane_geometry.faces.push(new THREE.Face3(j, j+3, j+2));
+                yane_geometry.faces.push(new THREE.Face3(j, j+1, j+3));
                 console.log(j, j+3, yane_geometry.vertices.length);
               }
 
@@ -979,14 +982,14 @@
 
               var material = new THREE.MeshBasicMaterial({color: 0x444444});
               var yane = new THREE.Mesh(yane_geometry, material);
-              // scene.add(yane);
+              scene.add(yane);
 
               kayaoi.computeFaceNormals();
               kayaoi.computeVertexNormals();
 
               var material = new THREE.MeshBasicMaterial({color: 0x999999});
               var kayaoi_mesh = new THREE.Mesh(kayaoi, material);
-              scene.add(kayaoi_mesh);
+              // scene.add(kayaoi_mesh);
             }
 
             // console.log(yane_geometry);
@@ -1035,7 +1038,7 @@
 
               var material = new THREE.MeshBasicMaterial({color: 0x999999});
               var sumizuno_mesh = new THREE.Mesh(sumizuno, material);
-              scene.add(sumizuno_mesh);
+              // scene.add(sumizuno_mesh);
             }
 
             make_sumizuno(A.x, A.y, A.z, C.x, C.y, C.z);
@@ -1150,56 +1153,57 @@
             //   // scene.add(hafu_line[hafu_line.length - 1]);
             // }
 
-            // if (i == yagura_steps - 1) {
-            //   A.x -= 3 * change_level.x / 4;
-            //   B.x += 3 * change_level.x / 4;
-            //   A.z -= 3 * change_level.z / 4;
-            //   B.z += 3 * change_level.z / 4;
-            //   C.x = A.x;
-            //   D.x = B.x;
-            //   C.y += change_level.y / 3;
-            //   D.y += change_level.y / 3;
-            //   C.z = (C.z + D.z) / 2;
-            //   D.z = C.z;
+            if (i == yagura_steps - 1) {
+              A.x -= 3 * change_level.x / 4;
+              B.x += 3 * change_level.x / 4;
+              A.z -= 3 * change_level.z / 4;
+              B.z += 3 * change_level.z / 4;
+              C.x = A.x;
+              D.x = B.x;
+              C.y += change_level.y / 3;
+              D.y += change_level.y / 3;
+              C.z = (C.z + D.z) / 2;
+              D.z = C.z;
 
-            //   var irimoya_line_vertices = [];
-            //   irimoya_line_vertices[0] = [];
-            //   irimoya_line_vertices[1] = [];
-            //   irimoya_line_vertices[2] = [];
-            //   var irimoya_steps = 5;
-            //   var irimoya_z = A.z, irimoya_y = A.y;
-            //   var L = Math.sqrt(Math.pow(C.z - A.z, 2) + Math.pow(C.y - A.y, 2));
-            //   var theta = -1 * Math.atan((C.y - A.y) / (C.z - A.z));
-            //   var alpha = 0.5;
-            //   for (let j=0; j<=irimoya_steps*2; j++) {
-            //     var step = j <= irimoya_steps ? j : irimoya_steps*2 - j;
-            //     irimoya_y = A.y + step * L / irimoya_steps * (Math.sin(theta) - alpha * (irimoya_steps - step) / irimoya_steps * Math.cos(theta));
-            //     irimoya_line_vertices[0].push(new THREE.Vector3(A.x, irimoya_y, irimoya_z));
-            //     irimoya_z += (C.z - A.z) / irimoya_steps;
-            //   }
+              var irimoya = [];
+              irimoya[0] = new THREE.Geometry();
+              irimoya[1] = new THREE.Geometry();
+              irimoya[2] = new THREE.Geometry();
+              var irimoya_steps = 5;
+              var irimoya_z = A.z, irimoya_y = A.y;
+              var L = Math.sqrt(Math.pow(C.z - A.z, 2) + Math.pow(C.y - A.y, 2));
+              var theta = -1 * Math.atan((C.y - A.y) / (C.z - A.z));
+              var alpha = 0.5;
+              for (let j=0; j<=irimoya_steps*2; j++) {
+                var step = j <= irimoya_steps ? j : irimoya_steps*2 - j;
+                irimoya_y = A.y + step * L / irimoya_steps * (Math.sin(theta) - alpha * (irimoya_steps - step) / irimoya_steps * Math.cos(theta));
+                irimoya[0].vertices.push(new THREE.Vector3(A.x, irimoya_y, irimoya_z));
+                irimoya[0].vertices.push(new THREE.Vector3(B.x, irimoya_y, irimoya_z));
+                irimoya[1].vertices.push(new THREE.Vector3(A.x, A.y, irimoya_z));
+                irimoya[1].vertices.push(new THREE.Vector3(A.x, irimoya_y, irimoya_z));
+                irimoya[2].vertices.push(new THREE.Vector3(B.x, irimoya_y, irimoya_z));
+                irimoya[2].vertices.push(new THREE.Vector3(B.x, B.y, irimoya_z));
+                irimoya_z += (C.z - A.z) / irimoya_steps;
+              }
 
-            //   irimoya_z = A.z;
-            //   for (let j=0; j<=irimoya_steps*2; j++) {
-            //     var step = j <= irimoya_steps ? j : irimoya_steps*2 - j;
-            //     irimoya_y = A.y + step * L / irimoya_steps * (Math.sin(theta) - alpha * (irimoya_steps - step) / irimoya_steps * Math.cos(theta));
-            //     irimoya_line_vertices[1].push(new THREE.Vector3(B.x, irimoya_y, irimoya_z));
-            //     irimoya_z += (C.z - A.z) / irimoya_steps;
-            //   }
+              for (let j=0; j<irimoya_steps*2; j++) {
+                irimoya[0].faces.push(new THREE.Face3(j*2, j*2+1, j*2+2));
+                irimoya[0].faces.push(new THREE.Face3(j*2+1, j*2+3, j*2+2));
+                irimoya[1].faces.push(new THREE.Face3(j*2, j*2+1, j*2+2));
+                irimoya[1].faces.push(new THREE.Face3(j*2+1, j*2+3, j*2+2));
+                irimoya[2].faces.push(new THREE.Face3(j*2, j*2+1, j*2+2));
+                irimoya[2].faces.push(new THREE.Face3(j*2+1, j*2+3, j*2+2));
+              }
 
-            //   irimoya_line_vertices[2].push(new THREE.Vector3(C.x, C.y, C.z));
-            //   irimoya_line_vertices[2].push(new THREE.Vector3(D.x, D.y, D.z));
+              geometry.computeFaceNormals();
+              geometry.computeVertexNormals();
 
-            //   irimoya_line.forEach(function(it) {
-            //     scene.remove(it);
-            //   })
-
-            //   irimoya_line = [];
-            //   for (let j=0; j<3; j++) {
-            //     irimoya_line.push(new THREE.Line( new THREE.Geometry, new THREE.LineBasicMaterial({color: 0x0000FF})));
-            //     irimoya_line[j].geometry.vertices = irimoya_line_vertices[j];
-            //     scene.add(irimoya_line[j]);
-            //   }
-            // }
+              var material = new THREE.MeshBasicMaterial({color: 0x444444});
+              for (let j=0; j<3; j++) {
+                irimoya_geometry[j] = new THREE.Mesh(irimoya[j], material);
+                scene.add(irimoya_geometry[j]);
+              }
+            }
 
             A.x -= change_level.x;
             A.y += change_level.y;
@@ -1268,6 +1272,7 @@
               make_yagura();
               make_yane();
               remove_yagura_line();
+              remove_yane_line();
               click_count++;
             }
           }
@@ -1422,6 +1427,18 @@
           yagura_line.forEach(function(i) {
             scene.remove(i);
           })          
+        }
+
+        function remove_yane_line() {
+          yane_line.forEach(function(i) {
+            scene.remove(i);
+          })
+          taruki_line.forEach(function(i) {
+            scene.remove(i);
+          })
+          irimoya_line.forEach(function(i) {
+            scene.remove(i);
+          })
         }
 
         function make_yagura() {
