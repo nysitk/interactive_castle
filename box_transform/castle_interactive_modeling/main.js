@@ -1,5 +1,8 @@
 import * as THREE from '/build/three.module.js';
 
+import { GUI } from '../controls/dat.gui.module.js';
+import { Sky } from '../controls/Sky.js';
+
 import { OrbitControls } from '../controls/OrbitControls.js';
 import { TransformControls } from '../controls/TransformControls.js';
 
@@ -11,17 +14,22 @@ let scene, renderer, control, orbit;
 const LINE = 0, GEOMETRY = 1;
 
 //石垣
-var ishigaki_steps = 6;
+var ishigaki_steps = 8;
 var ishigaki_line = [];
-var ishigaki_geometry = [];
+var ishigaki_geometry = new THREE.Mesh();
 // 櫓の補助線
 var yagura_steps = 5;
 var yagura_line = [];
 var yagura_geometry = [];
 // 屋根の補助線
 var yane_line = [];
+var yane_mesh = [];
+// 茅負
+var kayaoi_mesh = [];
 // 垂木の補助線
 var taruki_line = [];
+// 瓦棒
+var kawaraboh_geometry = [];
 // 入母屋破風の補助線
 var irimoya_line = [];
 var irimoya_geometry = [];
@@ -53,9 +61,63 @@ function init() {
   const axes = new THREE.AxesHelper(300);
   scene.add(axes);
 
-  const light = new THREE.DirectionalLight( 0xffffff, 2 );
-  light.position.set( 1, 1, 1 );
-  scene.add( light );
+  var hemisphereLight = new THREE.HemisphereLight( 0xeeeeff,0x999999,1.0);
+hemisphereLight.position.set( 2000, 2000, 2000);
+scene.add( hemisphereLight );
+
+var hemisphereLightHelper = new THREE.HemisphereLightHelper( hemisphereLight);
+scene.add( hemisphereLightHelper);
+
+
+        var sky = new Sky();
+        sky.scale.setScalar( 450000 );
+        scene.add( sky );
+
+        var sun = new THREE.Vector3();
+
+        const effectController = {
+          turbidity: 10,
+          rayleigh: 3,
+          mieCoefficient: 0.035,
+          mieDirectionalG: 0.9,
+          inclination: 0.35, // elevation / inclination
+          azimuth: 0.38, // Facing front,
+          exposure: renderer.toneMappingExposure
+        };
+
+        function guiChanged() {
+
+          const uniforms = sky.material.uniforms;
+          uniforms[ "turbidity" ].value = effectController.turbidity;
+          uniforms[ "rayleigh" ].value = effectController.rayleigh;
+          uniforms[ "mieCoefficient" ].value = effectController.mieCoefficient;
+          uniforms[ "mieDirectionalG" ].value = effectController.mieDirectionalG;
+
+          const theta = Math.PI * ( effectController.inclination - 0.5 );
+          const phi = 2 * Math.PI * ( effectController.azimuth - 0.5 );
+
+          sun.x = Math.cos( phi );
+          sun.y = Math.sin( phi ) * Math.sin( theta );
+          sun.z = Math.sin( phi ) * Math.cos( theta );
+
+          uniforms[ "sunPosition" ].value.copy( sun );
+
+          renderer.toneMappingExposure = effectController.exposure;
+          renderer.render( scene, currentCamera );
+
+        }
+
+        const gui = new GUI();
+
+        gui.add( effectController, "turbidity", 0.0, 20.0, 0.1 ).onChange( guiChanged );
+        gui.add( effectController, "rayleigh", 0.0, 4, 0.001 ).onChange( guiChanged );
+        gui.add( effectController, "mieCoefficient", 0.0, 0.1, 0.001 ).onChange( guiChanged );
+        gui.add( effectController, "mieDirectionalG", 0.0, 1, 0.001 ).onChange( guiChanged );
+        gui.add( effectController, "inclination", 0, 1, 0.0001 ).onChange( guiChanged );
+        gui.add( effectController, "azimuth", 0, 1, 0.0001 ).onChange( guiChanged );
+        gui.add( effectController, "exposure", 0, 1, 0.0001 ).onChange( guiChanged );
+
+        guiChanged();
 
   const texture = new THREE.TextureLoader().load( 'textures/crate.gif', render );
   texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
@@ -88,9 +150,6 @@ function init() {
   var rec_y0plane = new THREE.Line( line_geometry, new THREE.LineBasicMaterial({color: 0xFFFFFF}));
   // var ishigaki_line = new Array(5 * ishigaki_steps);
   for (let i=0; i<5*ishigaki_steps; i++) ishigaki_line[i] = (new THREE.Line( new THREE.Geometry, new THREE.LineBasicMaterial({color: 0xFFFFFF})));
-
-
-
 
   var build_mode = false;
   var edit_mode = false;
@@ -562,4 +621,4 @@ function render() {
 
 }
 
-export { scene, ishigaki_steps, ishigaki_line, ishigaki_geometry, yagura_steps, yagura_line, yagura_geometry, yane_line, taruki_line, irimoya_line, irimoya_geometry, hafu_line };
+export { scene, ishigaki_steps, ishigaki_line, ishigaki_geometry, yagura_steps, yagura_line, yagura_geometry, yane_line, yane_mesh, kayaoi_mesh, taruki_line, irimoya_line, irimoya_geometry, hafu_line };
