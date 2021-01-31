@@ -2,6 +2,7 @@ import * as THREE from '/build/three.module.js';
 
 import { GUI } from '../controls/dat.gui.module.js';
 import { Sky } from '../controls/Sky.js';
+import { OBJExporter } from '../controls/OBJExporter.js';
 
 import { OrbitControls } from '../controls/OrbitControls.js';
 import { TransformControls } from '../controls/TransformControls.js';
@@ -14,7 +15,7 @@ let scene, renderer, control, orbit;
 const LINE = 0, GEOMETRY = 1;
 
 //石垣
-var ishigaki_steps = 8;
+var ishigaki_steps = 6;
 var ishigaki_line = [];
 var ishigaki_geometry = new THREE.Mesh();
 // 櫓の補助線
@@ -52,7 +53,8 @@ function init() {
   cameraOrtho = new THREE.OrthographicCamera( - 600 * aspect, 600 * aspect, 600, - 600, 0.01, 30000 );
   currentCamera = cameraPersp;
 
-  currentCamera.position.set( 100, 400, 100 );
+  currentCamera.position.set( 136, 300, 226 );
+  // currentCamera.position.set( 153, 228, 322 );
 
   const mouse = new THREE.Vector2();
 
@@ -129,10 +131,10 @@ scene.add( hemisphereLightHelper);
   const material = new THREE.MeshNormalMaterial();
   const geometry = new THREE.SphereGeometry(3, 3, 3);
   const mesh = new THREE.Mesh(geometry, material);
-  scene.add(mesh);
+  // scene.add(mesh);
 
   orbit = new OrbitControls( currentCamera, renderer.domElement );
-  orbit.target.set(0, 0, 0)
+  orbit.target.set(0, 100, 0)
   orbit.update();
   orbit.addEventListener( 'change', render );
 
@@ -319,21 +321,16 @@ scene.add( hemisphereLightHelper);
   }
 
   window.addEventListener('click', function(e) {
+    console.log(e.clientX, e.clientY, currentCamera.position);
     if (build_mode) {
       if (click_count == 0) {
         ref_point[0] = mouse_on_y0plane.clone();
-        var m = new THREE.Mesh(geometry, material);
-        scene.add(m);
-        m.position.set(ref_point[0].x, ref_point[0].y, ref_point[0].z);
         // ref_point[0] ... 最初に決めた点(地面上)
         click_count++;
         scene.add(rec_y0plane); // 補助線追加
         // console.log(ref_point[0]);
       } else if (click_count == 1) {
         ref_point[1] = mouse_on_y0plane.clone();
-        var m = new THREE.Mesh(geometry, material);
-        scene.add(m);
-        m.position.set(ref_point[1].x, ref_point[1].y, ref_point[1].z);
         // ref_point[1] ... 最初に決めた点と対角線上にある地面上の点
         for (let i=0; i<5*ishigaki_steps; i++) scene.add(ishigaki_line[i]);
         click_count++;
@@ -345,9 +342,6 @@ scene.add( hemisphereLightHelper);
           ref_point[3].y,
           ref_point[1].z - (ref_point[3].z - ref_point[0].z)
         );
-        var m = new THREE.Mesh(geometry, material);
-        scene.add(m);
-        m.position.set(ref_point[3].x, ref_point[3].y, ref_point[3].z);
         // ref_point[3] ... 0と1の点を通る、地面に垂直な平面上の点。石垣の上面の1と同じ側にある点
         // ref_point[2] ... 3と対角線上にある点。石垣の上面の0と同じ側にある点
         for (let i=0; i<5*ishigaki_steps; i++) scene.remove(ishigaki_line[i]);
@@ -389,6 +383,10 @@ scene.add( hemisphereLightHelper);
         );
         BUILDING.remove_yagura_line();
         BUILDING.remove_all_yane_line();
+        click_count++;
+      } else if (click_count == 4) {
+        click_count++;
+      } else if (click_count == 5) {
         click_count++;
       }
     }
@@ -481,6 +479,88 @@ scene.add( hemisphereLightHelper);
     }
   }
 
+  function calc_3points_to_camera(P1, P2) {
+    var P11 = currentCamera.getFocalLength(), P22 = P11, P13 = window.innerWidth / 2.0, P23 = window.innerHeight / 2.0;
+    var P = new THREE.Matrix4();
+    P.set(P11, 0, 0, 0,
+          0, P22, 0, 0,
+          P13, P13, 1, 0,
+          0, 0, 0, 1);
+    var m = [];
+    m[P1[0]] = new THREE.Vector2(778, 325);
+    m[P1[1]] = new THREE.Vector2(760, 622);
+    m[P1[2]] = new THREE.Vector2(307, 414);
+    m[P1[3]] = new THREE.Vector2(533, 282);
+
+    var M = [], r = 400;
+    M[P2[0]] = new THREE.Vector3(-1 * r / 2.0, r / 2.0, 0);
+    M[P2[1]] = new THREE.Vector3(r / 2.0, r / 2.0, 0);
+    M[P2[2]] = new THREE.Vector3(r / 2.0, -1 * r / 2.0, 0);
+    M[P2[3]] = new THREE.Vector3(-1 * r / 2.0, -1 * r / 2.0, 0);
+
+    var a = [], b = [], c = [], n = [];
+    for (let i = 0; i < 4; i++) {
+      var ii = (i == 3) ? 0 : i+1;
+      a[i] = m[ii].y - m[i].y;
+      b[i] = m[i].x - m[ii].x;
+      c[i] = (m[i].y - m[ii].y) * m[i].x + (m[ii].x - m[i].x) * m[i].y;
+
+      n[i] = new THREE.Vector3(a[i] * P11, a[i] * 0 + b[i] * P22, a[i] * P13 + b[i] * P23 + c[i]);
+    }
+
+    var u0 = new THREE.Vector3().crossVectors(n[0], n[2]).normalize();
+    var u1 = new THREE.Vector3().crossVectors(n[1], n[3]).normalize();
+    var u2 = new THREE.Vector3().crossVectors(u1, u0).normalize();
+    var R = new THREE.Matrix3();
+    R.set(u0.x, u0.y, u0.z,
+          u1.x, u1.y, u1.z,
+          u2.x, u2.y, u2.z);
+
+    var W = [];
+    var A = [], b = [];
+    for (let i = 0; i < 4; i++) {
+      W[i] = M[i].clone().applyMatrix3(R);
+
+      A.push([P11, 0, P13 - m[i].x]);
+      A.push([0, P22, P23 - m[i].y]);
+      b.push(W[i].z * m[i].x - P11 * W[i].x - 0 * W[i].y - P13 * W[i].z);
+      b.push(W[i].z * m[i].y - P22 * W[i].y - P23 * W[i].z);
+    }
+    var T = math.multiply(math.multiply(math.inv(math.multiply(math.transpose(A), A)),  math.transpose(A)), b);
+    console.log(T)
+  }
+
+  function Per() {
+    let a = [0,1,2,3];
+    let ainit = [];
+    let a2, a3, a4;
+    for (let i = 0; i < a.length; i++) {
+      a2 = a.slice(0);
+      a2.splice(i, 1);
+      for (let j = 0; j < a2.length; j++) {
+        a3 = a2.slice(0);
+        a3.splice(j, 1);
+        for (let k = 0; k < a3.length; k++) {
+          a4 = a3.slice(0);
+          a4.splice(k, 1);
+          for (let l = 0; l < a4.length; l++) {
+            ainit.push([a[i]].concat([a2[j]]).concat([a3[k]]).concat([a4[l]]));
+          }
+        }
+      }
+    }
+    return ainit;
+  }
+
+  function all() {
+    var P1 = Per(), P2 = P1;
+    for (let i = 0; i < P1.length; i++) {
+      for (let j = 0; j < P2.length; j++) {
+        calc_3points_to_camera(P1[i], P2[j]);
+      }
+    }
+  }
+
   window.addEventListener( 'resize', onWindowResize, false );
 
   window.addEventListener( 'keydown', function ( event ) {
@@ -490,6 +570,7 @@ scene.add( hemisphereLightHelper);
         build_mode = !build_mode;
 
         console.log(build_mode);
+        console.log(currentCamera.position)
         break;
 
       case 69: // E
@@ -571,6 +652,26 @@ scene.add( hemisphereLightHelper);
       case 32: // Spacebar
         control.enabled = ! control.enabled;
         break;
+
+      case 80: // P
+        exportToObj();
+        console.log(ref_point);
+        break;
+
+      case 65: // A
+        // calc_3points_to_camera();
+        all()
+        break;
+
+    }
+      
+    function exportToObj() {
+
+      const exporter = new OBJExporter();
+      scene.remove(mesh);
+      scene.remove(sky);
+      const result = exporter.parse( scene );
+      console.log(result);
 
     }
 

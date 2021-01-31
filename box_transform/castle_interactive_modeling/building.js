@@ -26,32 +26,23 @@ function render_ishigaki(initA, initB, initC, initD, mode) {
   function r(axis, sub) {
     let n = ishigaki_steps;
 
-    if (axis == 0) {
-      var r = b_x / h;
-      if (sub == n - 1) {
-        return r;
-      } else {
-        for (let i = (n-1); i > sub; i--) {
-          if (i != 0) r -= delta_x / i;
-        }
-        return r;
-      }
-    }
+    let r = (axis == 0) ? b_x / h : b_z / h;
+    let delta = (axis == 0) ? delta_x : delta_z;
 
-    if (axis == 2) {
-      var r = b_z / h;
-      if (sub == n - 1) {
-        return r;
-      } else {
-        for (let i = (n-1); i > sub; i--) {
-          if (i != 0) r -= delta_z / i;
-        }
-        return r;
+    if (sub != n - 1) {
+      for (let i = (n-1); i > sub; i--) {
+        if (i != 0) r -= delta / i;
       }
+      // for (let j = (sub+1); j <= n-1; j++) {
+      //   if (j != 0) r -= delta / j;
+      // }
     }
+    return r;
   }
 
   function change_level(axis, sub) {
+    // y軸方向であればそのまま等分した量だけ増加
+    // x、z軸方向であればrを計算し、適用して返す
     if (axis == 1) {
       return h / ishigaki_steps;
     } else {
@@ -64,7 +55,7 @@ function render_ishigaki(initA, initB, initC, initD, mode) {
   }
 
   for (let i = 0; i < ishigaki_steps; i++) {
-
+    // change_level(axis, sub) は軸方向axis、i段目を指すsubを引数として、各段ごとの差分を算出する。
     C.x -= change_level(0, (ishigaki_steps-1)-i);
     C.y += change_level(1, (ishigaki_steps-1)-i);
     C.z -= change_level(2, (ishigaki_steps-1)-i);
@@ -327,13 +318,13 @@ function render_yane(initA, initB, initC, initD, mode) {
     initB.z + change_level.z,
   )
 
-  var taruki_interval_x = -1 * change_level.x / 8;
+  var taruki_interval_x = -1 * change_level.x / 6;
   if (taruki_interval_x == 0.0) taruki_interval_x = 0.1;
-  var taruki_interval_z = -1 * change_level.z / 8;
+  var taruki_interval_z = -1 * change_level.z / 6;
   if (taruki_interval_z == 0.0) taruki_interval_z = 0.1;
-  var init_taruki_num_x = Math.round((initB.x - initA.x) / taruki_interval_x);
-  var init_taruki_num_z = Math.round((initB.z - initA.z) / taruki_interval_z);
-  var sei = change_level.y / 2 / init_taruki_num_x * 10;
+  var init_taruki_num_x = Math.ceil((initB.x - initA.x) / taruki_interval_x)+1;
+  var init_taruki_num_z = Math.ceil((initB.z - initA.z) / taruki_interval_z)+1;
+  var sei = taruki_interval_x;
 
   if (mode==0) {
     remove_taruki_line();
@@ -359,8 +350,8 @@ function render_yane(initA, initB, initC, initD, mode) {
       D.y -= change_level.y / 6;
     }
 
-    var taruki_num_x = Math.round((B.x - A.x) / taruki_interval_x);
-    var taruki_num_z = Math.round((B.z - A.z) / taruki_interval_z);
+    var taruki_num_x = Math.ceil((B.x - A.x) / taruki_interval_x);
+    var taruki_num_z = Math.ceil((B.z - A.z) / taruki_interval_z);
 
     var yane_x = A.x;
     var yane_y = A.y;
@@ -371,13 +362,7 @@ function render_yane(initA, initB, initC, initD, mode) {
         var kayaoi_geometry = new THREE.Geometry();
       }
 
-      var taruki_num;
-
-      if (direction % 2 == 0) {
-        taruki_num = taruki_num_x;
-      } else {
-        taruki_num = taruki_num_z;
-      }
+      var taruki_num = (direction % 2 == 0) ? taruki_num_x : taruki_num_z;
 
       if (taruki_num > 100) taruki_num = 100;
 
@@ -387,14 +372,22 @@ function render_yane(initA, initB, initC, initD, mode) {
       // yane_geometry.vertices.push(new THREE.Vector3(A.x, A.y + sei, A.z));
 
       for (let j=0; j<taruki_num; j++) {
+        // if (j < 8) {
+        //   yane_y = A.y + sei * (8-j-1) * (8-j) / 8 / 7;
+        // } else if (j > taruki_num - 8) {
+        //   yane_y = A.y + sei * count * (count+1) / 8 / 7;
+        //   count++;
+        // } else {
+        //   yane_y = A.y;
+        // }
         if (j < 8) {
-          yane_y = A.y + sei * 2 * (8-j-1) * (8-j) / 8 / 7;
+          count = 7 - j;
         } else if (j > taruki_num - 8) {
-          yane_y = A.y + sei * 2 * count * (count+1) / 8 / 7;
-          count++;
+          count = j - (taruki_num - 7);
         } else {
-          yane_y = A.y;
+          count = 0;
         }
+        yane_y = A.y + sei * count * (count+1) / 8 / 7;
 
         if (mode==0) {
           yane_line_vertices[0].push(new THREE.Vector3(yane_x, yane_y, yane_z));
@@ -439,7 +432,7 @@ function render_yane(initA, initB, initC, initD, mode) {
               taruki_line_vertices.push(new THREE.Vector3(yane_x - chanx, yane_y + change_level.y / 6 * chanx / change_level.x, yane_z));
             }
             taruki_line[taruki_line.length - 1].geometry.vertices = taruki_line_vertices;
-            scene.add(taruki_line[taruki_line.length - 1]);
+            // scene.add(taruki_line[taruki_line.length - 1]);
           }
         } else if (mode==1) {
           if (j % 1 == 0) {
@@ -453,10 +446,10 @@ function render_yane(initA, initB, initC, initD, mode) {
               var chany = C.y, chanz = (A.z - C.z);
               if (-(yane_x - A.x) > (A.x - C.x)) {
                 chanz = grad * (A.x - yane_x);
-                chany = calc_sumimune(A.x, A.y+sei, A.z, C.x, C.y, C.z, yane_x, yane_z - chanz);
+                chany = calc_sumimune(A.x, A.y, A.z, C.x, C.y, C.z, yane_x, yane_z - chanz);
               } else if ((yane_x - B.x) > (A.x - C.x)) {
                 chanz = grad * -(B.x - yane_x);
-                chany = calc_sumimune(B.x, A.y+sei, A.z, D.x, C.y, C.z, yane_x, yane_z - chanz);
+                chany = calc_sumimune(B.x, A.y, A.z, D.x, C.y, C.z, yane_x, yane_z - chanz);
               }
               yane_geometry.vertices.push(new THREE.Vector3(yane_x, chany, yane_z - chanz));
 
@@ -469,10 +462,10 @@ function render_yane(initA, initB, initC, initD, mode) {
               var chany = C.y, chanx = (A.x - C.x);
               if (-(yane_z - A.z) < (A.z - C.z)) {
                 chanx = grad * -(A.z - yane_z);
-                chany = calc_sumimune(B.x, A.y+sei, A.z, D.x, C.y, C.z, yane_x + chanx, yane_z);
+                chany = calc_sumimune(B.x, A.y, A.z, D.x, C.y, C.z, yane_x + chanx, yane_z);
               } else if ((yane_z - B.z) < (A.z - C.z)) {
                 chanx = grad * (B.z - yane_z);
-                chany = calc_sumimune(B.x, B.y+sei, B.z, D.x, D.y, D.z, yane_x + chanx, yane_z);
+                chany = calc_sumimune(B.x, B.y, B.z, D.x, D.y, D.z, yane_x + chanx, yane_z);
               }
               yane_geometry.vertices.push(new THREE.Vector3(yane_x + chanx, chany, yane_z));
             
@@ -485,10 +478,10 @@ function render_yane(initA, initB, initC, initD, mode) {
               var chany = C.y, chanz = (A.z - C.z);
               if ((yane_x - B.x) > (A.x - C.x)) {
                 chanz = grad * -(B.x - yane_x);
-                chany = calc_sumimune(B.x, A.y+sei, B.z, D.x, C.y, D.z, yane_x, yane_z + chanz);
+                chany = calc_sumimune(B.x, A.y, B.z, D.x, C.y, D.z, yane_x, yane_z + chanz);
               } else if (-(yane_x - A.x) > (A.x - C.x)) {
                 chanz = grad * (A.x - yane_x);
-                chany = calc_sumimune(A.x, A.y+sei, B.z, C.x, C.y, D.z, yane_x, yane_z + chanz);
+                chany = calc_sumimune(A.x, A.y, B.z, C.x, C.y, D.z, yane_x, yane_z + chanz);
               }
               yane_geometry.vertices.push(new THREE.Vector3(yane_x, chany, yane_z + chanz));
             
@@ -501,10 +494,10 @@ function render_yane(initA, initB, initC, initD, mode) {
               var chany = C.y, chanx = (A.x - C.x);
               if ((yane_z - B.z) < (A.z - C.z)) {
                 chanx = grad * (B.z - yane_z);
-                chany = calc_sumimune(A.x, A.y+sei, B.z, C.x, C.y, D.z, yane_x - chanx, yane_z);
+                chany = calc_sumimune(A.x, A.y, B.z, C.x, C.y, D.z, yane_x - chanx, yane_z);
               } else if (-(yane_z - A.z) < (A.z - C.z)) {
                 chanx = grad * -(A.z - yane_z);
-                chany = calc_sumimune(A.x, A.y+sei, A.z, C.x, C.y, C.z, yane_x - chanx, yane_z);
+                chany = calc_sumimune(A.x, A.y, A.z, C.x, C.y, C.z, yane_x - chanx, yane_z);
               }
               yane_geometry.vertices.push(new THREE.Vector3(yane_x - chanx, chany, yane_z));
             
@@ -566,7 +559,7 @@ function render_yane(initA, initB, initC, initD, mode) {
 
           var material = new THREE.MeshLambertMaterial({color: 0x555555});
           var kawaraboh_mesh = new THREE.Mesh(kawaraboh, material);
-          scene.add(kawaraboh_mesh);
+          // scene.add(kawaraboh_mesh);
         }
 
         function add_taruki_mesh() {
@@ -617,7 +610,7 @@ function render_yane(initA, initB, initC, initD, mode) {
 
           var material = new THREE.MeshLambertMaterial({color: 0x555555});
           var taruki_mesh = new THREE.Mesh(taruki, material);
-          scene.add(taruki_mesh);
+          // scene.add(taruki_mesh);
         }
 
         if (direction==0) {
@@ -636,7 +629,7 @@ function render_yane(initA, initB, initC, initD, mode) {
       function add_kayaoi_vertices(j){
         if (direction==0) {
           if (j == 0) {
-            kayaoi_geometry.vertices.push(new THREE.Vector3(A.x, A.y + sei, A.z - taruki_interval_x));
+            kayaoi_geometry.vertices.push(new THREE.Vector3(A.x, A.y, A.z - taruki_interval_x));
           } else {
             kayaoi_geometry.vertices.push(new THREE.Vector3(yane_x, yane_y, yane_z - taruki_interval_x));
           }
@@ -644,14 +637,14 @@ function render_yane(initA, initB, initC, initD, mode) {
           kayaoi_geometry.vertices.push(new THREE.Vector3(yane_x, yane_y - taruki_interval_x, yane_z));
 
           if (j == taruki_num - 1) {
-            kayaoi_geometry.vertices.push(new THREE.Vector3(B.x, A.y + sei*2, A.z));
-            kayaoi_geometry.vertices.push(new THREE.Vector3(B.x, A.y + sei, A.z - taruki_interval_x));
-            kayaoi_geometry.vertices.push(new THREE.Vector3(B.x, A.y + sei*2 - taruki_interval_x, A.z - taruki_interval_x));
-            kayaoi_geometry.vertices.push(new THREE.Vector3(B.x, A.y + sei*2 - taruki_interval_x, A.z));
+            kayaoi_geometry.vertices.push(new THREE.Vector3(B.x, A.y + sei, A.z));
+            kayaoi_geometry.vertices.push(new THREE.Vector3(B.x, A.y, A.z - taruki_interval_x));
+            kayaoi_geometry.vertices.push(new THREE.Vector3(B.x, A.y + sei - taruki_interval_x, A.z - taruki_interval_x));
+            kayaoi_geometry.vertices.push(new THREE.Vector3(B.x, A.y + sei - taruki_interval_x, A.z));
           }
         } else if (direction==1) {
           if (j == 0) {
-            kayaoi_geometry.vertices.push(new THREE.Vector3(B.x - taruki_interval_x, A.y + sei, A.z));
+            kayaoi_geometry.vertices.push(new THREE.Vector3(B.x - taruki_interval_x, A.y, A.z));
           } else {
             kayaoi_geometry.vertices.push(new THREE.Vector3(yane_x - taruki_interval_x, yane_y, yane_z));
           }
@@ -659,28 +652,28 @@ function render_yane(initA, initB, initC, initD, mode) {
           kayaoi_geometry.vertices.push(new THREE.Vector3(yane_x, yane_y - taruki_interval_x, yane_z));
 
           if (j == taruki_num - 1) {
-            kayaoi_geometry.vertices.push(new THREE.Vector3(B.x, B.y + sei*2, B.z));
-            kayaoi_geometry.vertices.push(new THREE.Vector3(B.x - taruki_interval_x, B.y + sei, B.z));
-            kayaoi_geometry.vertices.push(new THREE.Vector3(B.x - taruki_interval_x, B.y + sei*2 - taruki_interval_x, B.z));
-            kayaoi_geometry.vertices.push(new THREE.Vector3(B.x, B.y + sei*2 - taruki_interval_x, B.z));
+            kayaoi_geometry.vertices.push(new THREE.Vector3(B.x, B.y + sei, B.z));
+            kayaoi_geometry.vertices.push(new THREE.Vector3(B.x - taruki_interval_x, B.y, B.z));
+            kayaoi_geometry.vertices.push(new THREE.Vector3(B.x - taruki_interval_x, B.y + sei - taruki_interval_x, B.z));
+            kayaoi_geometry.vertices.push(new THREE.Vector3(B.x, B.y + sei - taruki_interval_x, B.z));
           }
         } else if (direction==2) {
           if (j == 0) {
-            kayaoi_geometry.vertices.push(new THREE.Vector3(B.x, B.y + sei, B.z + taruki_interval_x));
+            kayaoi_geometry.vertices.push(new THREE.Vector3(B.x, B.y, B.z + taruki_interval_x));
           } else {
             kayaoi_geometry.vertices.push(new THREE.Vector3(yane_x + taruki_interval_x, yane_y, yane_z));
           }
           kayaoi_geometry.vertices.push(new THREE.Vector3(yane_x, yane_y - taruki_interval_x, yane_z + taruki_interval_x));
           kayaoi_geometry.vertices.push(new THREE.Vector3(yane_x, yane_y - taruki_interval_x, yane_z));
           if (j == taruki_num - 1) {
-            kayaoi_geometry.vertices.push(new THREE.Vector3(A.x, A.y + sei*2, B.z));
-            kayaoi_geometry.vertices.push(new THREE.Vector3(A.x, A.y + sei, B.z + taruki_interval_x));
-            kayaoi_geometry.vertices.push(new THREE.Vector3(A.x, A.y + sei*2 - taruki_interval_x, B.z + taruki_interval_x));
-            kayaoi_geometry.vertices.push(new THREE.Vector3(A.x, A.y + sei*2 - taruki_interval_x, B.z));
+            kayaoi_geometry.vertices.push(new THREE.Vector3(A.x, A.y + sei, B.z));
+            kayaoi_geometry.vertices.push(new THREE.Vector3(A.x, A.y, B.z + taruki_interval_x));
+            kayaoi_geometry.vertices.push(new THREE.Vector3(A.x, A.y + sei - taruki_interval_x, B.z + taruki_interval_x));
+            kayaoi_geometry.vertices.push(new THREE.Vector3(A.x, A.y + sei - taruki_interval_x, B.z));
           }
         } else if (direction==3) {
           if (j == 0) {
-            kayaoi_geometry.vertices.push(new THREE.Vector3(A.x + taruki_interval_x, A.y + sei, B.z));
+            kayaoi_geometry.vertices.push(new THREE.Vector3(A.x + taruki_interval_x, A.y, B.z));
           } else {
             kayaoi_geometry.vertices.push(new THREE.Vector3(yane_x + taruki_interval_x, yane_y, yane_z));
           }
@@ -688,17 +681,17 @@ function render_yane(initA, initB, initC, initD, mode) {
           kayaoi_geometry.vertices.push(new THREE.Vector3(yane_x, yane_y - taruki_interval_x, yane_z));
 
           if (j == taruki_num - 1) {
-            kayaoi_geometry.vertices.push(new THREE.Vector3(A.x, A.y + sei*2, A.z));
-            kayaoi_geometry.vertices.push(new THREE.Vector3(A.x + taruki_interval_x, A.y + sei, A.z));
-            kayaoi_geometry.vertices.push(new THREE.Vector3(A.x + taruki_interval_x, A.y + sei*2 - taruki_interval_x, A.z));
-            kayaoi_geometry.vertices.push(new THREE.Vector3(A.x, A.y + sei*2 - taruki_interval_x, A.z));
+            kayaoi_geometry.vertices.push(new THREE.Vector3(A.x, A.y + sei, A.z));
+            kayaoi_geometry.vertices.push(new THREE.Vector3(A.x + taruki_interval_x, A.y, A.z));
+            kayaoi_geometry.vertices.push(new THREE.Vector3(A.x + taruki_interval_x, A.y + sei - taruki_interval_x, A.z));
+            kayaoi_geometry.vertices.push(new THREE.Vector3(A.x, A.y + sei - taruki_interval_x, A.z));
           }
         }
       }
 
       if (mode==1) {
-        yane_geometry.vertices.push(new THREE.Vector3(yane_x, A.y+sei*2, yane_z));
-        yane_geometry.vertices.push(new THREE.Vector3(yane_x, A.y+sei*2, yane_z));
+        yane_geometry.vertices.push(new THREE.Vector3(yane_x, A.y+sei, yane_z));
+        yane_geometry.vertices.push(new THREE.Vector3(yane_x, A.y+sei, yane_z));
 
         for (let j=0; j < yane_geometry.vertices.length - 1; j=j+2) {
           if (j+2 > yane_geometry.vertices.length - 1) break;
@@ -739,7 +732,7 @@ function render_yane(initA, initB, initC, initD, mode) {
 
         var material = new THREE.MeshLambertMaterial({color: 0x999999});
         kayaoi_mesh[direction] = new THREE.Mesh(kayaoi_geometry, material);
-        scene.add(kayaoi_mesh[direction]);
+        // scene.add(kayaoi_mesh[direction]);
       }
     }
 
@@ -795,19 +788,48 @@ function render_yane(initA, initB, initC, initD, mode) {
       return (yane_y);
     }
 
-    function make_sumizuno(Downx, Downy, Downz, Upx, Upy, Upz) {
+    function make_sumizuno(Downx, Downy, Downz, Upx, Upy, Upz, direction) {
       var sumizuno = new THREE.Geometry();
-      var inv = taruki_interval_x / Math.sqrt(2.0);
+      var inv = taruki_interval_x / Math.sqrt(2.0) / 2;
       Downy += sei;
 
-      sumizuno.vertices.push(new THREE.Vector3(Downx + inv, Downy - taruki_interval_x * 2, Downz + inv));
-      sumizuno.vertices.push(new THREE.Vector3(Downx - inv, Downy - taruki_interval_x * 2, Downz - inv));
-      sumizuno.vertices.push(new THREE.Vector3(Downx - inv, Downy - taruki_interval_x, Downz - inv));
-      sumizuno.vertices.push(new THREE.Vector3(Downx + inv, Downy - taruki_interval_x, Downz + inv));
-      sumizuno.vertices.push(new THREE.Vector3(Downx - change_level.x + inv, Downy + change_level.y / 6 - taruki_interval_x * 2, Downz - change_level.z + inv));
-      sumizuno.vertices.push(new THREE.Vector3(Downx - change_level.x - inv, Downy + change_level.y / 6 - taruki_interval_x * 2, Downz - change_level.z - inv));
-      sumizuno.vertices.push(new THREE.Vector3(Downx - change_level.x - inv, Downy + change_level.y / 6 - taruki_interval_x, Downz - change_level.z - inv));
-      sumizuno.vertices.push(new THREE.Vector3(Downx - change_level.x + inv, Downy + change_level.y / 6 - taruki_interval_x, Downz - change_level.z + inv));
+      if (direction==0) {
+        sumizuno.vertices.push(new THREE.Vector3(Downx + inv, Downy - taruki_interval_x * 2, Downz + inv));
+        sumizuno.vertices.push(new THREE.Vector3(Downx - inv, Downy - taruki_interval_x * 2, Downz - inv));
+        sumizuno.vertices.push(new THREE.Vector3(Downx - inv, Downy - taruki_interval_x, Downz - inv));
+        sumizuno.vertices.push(new THREE.Vector3(Downx + inv, Downy - taruki_interval_x, Downz + inv));
+        sumizuno.vertices.push(new THREE.Vector3(Downx - change_level.x + inv, Downy + change_level.y / 6 - taruki_interval_x * 2, Downz - change_level.z + inv));
+        sumizuno.vertices.push(new THREE.Vector3(Downx - change_level.x - inv, Downy + change_level.y / 6 - taruki_interval_x * 2, Downz - change_level.z - inv));
+        sumizuno.vertices.push(new THREE.Vector3(Downx - change_level.x - inv, Downy + change_level.y / 6 - taruki_interval_x, Downz - change_level.z - inv));
+        sumizuno.vertices.push(new THREE.Vector3(Downx - change_level.x + inv, Downy + change_level.y / 6 - taruki_interval_x, Downz - change_level.z + inv));
+      } else if (direction==1) {
+        sumizuno.vertices.push(new THREE.Vector3(Downx + inv, Downy - taruki_interval_x * 2, Downz + inv));
+        sumizuno.vertices.push(new THREE.Vector3(Downx - inv, Downy - taruki_interval_x * 2, Downz - inv));
+        sumizuno.vertices.push(new THREE.Vector3(Downx - inv, Downy - taruki_interval_x, Downz - inv));
+        sumizuno.vertices.push(new THREE.Vector3(Downx + inv, Downy - taruki_interval_x, Downz + inv));
+        sumizuno.vertices.push(new THREE.Vector3(Downx + change_level.x + inv, Downy + change_level.y / 6 - taruki_interval_x * 2, Downz - change_level.z + inv));
+        sumizuno.vertices.push(new THREE.Vector3(Downx + change_level.x - inv, Downy + change_level.y / 6 - taruki_interval_x * 2, Downz - change_level.z - inv));
+        sumizuno.vertices.push(new THREE.Vector3(Downx + change_level.x - inv, Downy + change_level.y / 6 - taruki_interval_x, Downz - change_level.z - inv));
+        sumizuno.vertices.push(new THREE.Vector3(Downx + change_level.x + inv, Downy + change_level.y / 6 - taruki_interval_x, Downz - change_level.z + inv));
+      } else if (direction==2) {
+        sumizuno.vertices.push(new THREE.Vector3(Downx + inv, Downy - taruki_interval_x * 2, Downz + inv));
+        sumizuno.vertices.push(new THREE.Vector3(Downx - inv, Downy - taruki_interval_x * 2, Downz - inv));
+        sumizuno.vertices.push(new THREE.Vector3(Downx - inv, Downy - taruki_interval_x, Downz - inv));
+        sumizuno.vertices.push(new THREE.Vector3(Downx + inv, Downy - taruki_interval_x, Downz + inv));
+        sumizuno.vertices.push(new THREE.Vector3(Downx - change_level.x + inv, Downy + change_level.y / 6 - taruki_interval_x * 2, Downz - change_level.z + inv));
+        sumizuno.vertices.push(new THREE.Vector3(Downx - change_level.x - inv, Downy + change_level.y / 6 - taruki_interval_x * 2, Downz - change_level.z - inv));
+        sumizuno.vertices.push(new THREE.Vector3(Downx - change_level.x - inv, Downy + change_level.y / 6 - taruki_interval_x, Downz - change_level.z - inv));
+        sumizuno.vertices.push(new THREE.Vector3(Downx - change_level.x + inv, Downy + change_level.y / 6 - taruki_interval_x, Downz - change_level.z + inv));
+      } else if (direction==3) {
+        sumizuno.vertices.push(new THREE.Vector3(Downx + inv, Downy - taruki_interval_x * 2, Downz + inv));
+        sumizuno.vertices.push(new THREE.Vector3(Downx - inv, Downy - taruki_interval_x * 2, Downz - inv));
+        sumizuno.vertices.push(new THREE.Vector3(Downx - inv, Downy - taruki_interval_x, Downz - inv));
+        sumizuno.vertices.push(new THREE.Vector3(Downx + inv, Downy - taruki_interval_x, Downz + inv));
+        sumizuno.vertices.push(new THREE.Vector3(Downx - change_level.x + inv, Downy + change_level.y / 6 - taruki_interval_x * 2, Downz - change_level.z + inv));
+        sumizuno.vertices.push(new THREE.Vector3(Downx - change_level.x - inv, Downy + change_level.y / 6 - taruki_interval_x * 2, Downz - change_level.z - inv));
+        sumizuno.vertices.push(new THREE.Vector3(Downx - change_level.x - inv, Downy + change_level.y / 6 - taruki_interval_x, Downz - change_level.z - inv));
+        sumizuno.vertices.push(new THREE.Vector3(Downx - change_level.x + inv, Downy + change_level.y / 6 - taruki_interval_x, Downz - change_level.z + inv));
+      } 
 
       sumizuno.faces.push(new THREE.Face3( 0, 3, 1));
       sumizuno.faces.push(new THREE.Face3( 1, 3, 2));
@@ -826,14 +848,14 @@ function render_yane(initA, initB, initC, initD, mode) {
 
       var material = new THREE.MeshLambertMaterial({color: 0x999999});
       var sumizuno_mesh = new THREE.Mesh(sumizuno, material);
-      scene.add(sumizuno_mesh);
+      // scene.add(sumizuno_mesh);
     }
 
     if (mode==1) {
-      make_sumizuno(A.x, A.y, A.z, C.x, C.y, C.z);
-      make_sumizuno(A.x, A.y, B.z, C.x, C.y, D.z);
-      make_sumizuno(B.x, B.y, B.z, D.x, D.y, D.z);
-      make_sumizuno(B.x, A.y, A.z, D.x, C.y, C.z);
+      make_sumizuno(A.x, A.y, A.z, C.x, C.y, C.z, 0);
+      make_sumizuno(A.x, A.y, B.z, C.x, C.y, D.z, 3);
+      make_sumizuno(B.x, B.y, B.z, D.x, D.y, D.z, 2);
+      make_sumizuno(B.x, A.y, A.z, D.x, C.y, C.z, 1);
     }
 
     if (i == 0 && i != yagura_steps - 1) {
@@ -896,7 +918,7 @@ function render_yane(initA, initB, initC, initD, mode) {
 
         hafu_line.push(new THREE.Line( new THREE.Geometry, new THREE.LineBasicMaterial({color: 0x0000FF})));
         hafu_line[hafu_line.length - 1].geometry.vertices = hafu_line_vertices[0];
-        scene.add(hafu_line[hafu_line.length - 1]);
+        // scene.add(hafu_line[hafu_line.length - 1]);
       }
     }
 
@@ -928,7 +950,8 @@ function render_yane(initA, initB, initC, initD, mode) {
       var irimoya_z = A.z, irimoya_y = A.y;
       var L = Math.sqrt(Math.pow(C.z - A.z, 2) + Math.pow(C.y - A.y, 2));
       var theta = -1 * Math.atan((C.y - A.y) / (C.z - A.z));
-      var alpha = 0.5;
+      var alpha = 1/5;
+      console.log(alpha);
       for (let j=0; j<=irimoya_steps*2; j++) {
         var step = j <= irimoya_steps ? j : irimoya_steps*2 - j;
         irimoya_y = A.y + step * L / irimoya_steps * (Math.sin(theta) - alpha * (irimoya_steps - step) / irimoya_steps * Math.cos(theta));
@@ -975,7 +998,7 @@ function render_yane(initA, initB, initC, initD, mode) {
           irimoya[2].faces.push(new THREE.Face3(j*2+1, j*2+3, j*2+2));
         }
 
-        var material = new THREE.MeshLambertMaterial({color: 0x444444});
+        var material = new THREE.MeshLambertMaterial({color: 0x444444, side: THREE.DoubleSide});
         for (let j=0; j<3; j++) {
           irimoya[j].computeFaceNormals();
           irimoya[j].computeVertexNormals();
