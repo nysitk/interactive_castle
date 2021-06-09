@@ -47,8 +47,12 @@ var irimoya_geometry = [];
 // 千鳥破風の補助線
 var hafu_line = [];
 
+function calc(x) {
+	return x * 10;
+}
 class Sphere extends THREE.Mesh {
 	constructor(x, y, z) {
+		x = calc(x);
 		const geometry = new THREE.SphereGeometry(x, y, z);
 		const material = new THREE.MeshNormalMaterial();
 
@@ -316,14 +320,10 @@ function init() {
 	// const material = new THREE.MeshLambertMaterial( { map: texture, transparent: true } );
 
 	// // 直方体を作成
-	// const material = new THREE.MeshNormalMaterial();
-	// const geometry = new THREE.SphereGeometry(3, 3, 3);
-	// const mesh = new THREE.Mesh(geometry, material);
+	const material = new THREE.MeshNormalMaterial();
+	const geometry = new THREE.SphereGeometry(3, 3, 3);
+	const mesh = new THREE.Mesh(geometry, material);
 	// // scene.add(mesh);
-
-	// クラス試作
-	const mesh = new Sphere(30, 30, 30);
-	scene.add(mesh);
 
 	orbit = new OrbitControls( currentCamera, renderer.domElement );
 	orbit.target.set(0, 100, 0)
@@ -343,7 +343,6 @@ function init() {
 	var line_geometry = new THREE.Geometry();
 	var rec_y0plane = new THREE.Line( line_geometry, new THREE.LineBasicMaterial({color: 0xFFFFFF}));
 	// var ishigaki_line = new Array(5 * ishigaki_steps);
-	for (let i=0; i<5*ishigaki_steps; i++) ishigaki_line[i] = (new THREE.Line( new THREE.Geometry, new THREE.LineBasicMaterial({color: 0xFFFFFF})));
 
 	var build_mode = false;
 	var edit_mode = false;
@@ -415,15 +414,16 @@ function init() {
 				q.y * t + currentCamera.position.y,
 				q.z * t + currentCamera.position.z
 			);
-			// console.log(t);
 
-			BUILDING.render_ishigaki(
+			scene.remove(ishigaki_line);
+			ishigaki_line = new BUILDING.Ishigaki(
 				ref_point[0].clone(),
 				ref_point[1].clone(),
-				0,
-				mouse_on_2pplane.clone(),
-				LINE
+				mouse_on_2pplane.clone()
 			);
+			ishigaki_line.generate(LINE)
+			scene.add(ishigaki_line);
+
 		} else if (click_count == 3) {
 			// 平面の指定した2点を通り、y軸に平行な平面
 			var vec_2points = new THREE.Vector3(ref_point[1].x - ref_point[0].x, 0, ref_point[1].z - ref_point[0].z); // 2点間方向ベクトル
@@ -442,20 +442,34 @@ function init() {
 			mesh.position.set(mouse_on_2pplane.x, mouse_on_2pplane.y, mouse_on_2pplane.z);
 			// console.log(t);
 
-			BUILDING.render_yagura(
+			// BUILDING.render_yagura(
+			// 	ref_point[2].clone(),
+			// 	ref_point[3].clone(),
+			// 	0,
+			// 	mouse_on_2pplane.clone(),
+			// 	LINE
+			// );
+			if (yagura_line) {
+				scene.remove(yagura_line);
+			}
+			yagura_line = new BUILDING.Yagura(
 				ref_point[2].clone(),
 				ref_point[3].clone(),
-				0,
-				mouse_on_2pplane.clone(),
-				LINE
-			);
-			BUILDING.render_yane(
+				mouse_on_2pplane.clone()
+			)
+			yagura_line.generate(LINE);
+			scene.add(yagura_line);
+
+			if (yane_line) {
+				scene.remove(yane_line);
+			}
+			yane_line = new BUILDING.Yane(
 				ref_point[2].clone(),
 				ref_point[3].clone(),
-				0,
-				mouse_on_2pplane.clone(),
-				LINE
+				mouse_on_2pplane.clone()
 			);
+			yane_line.generate(LINE);
+			scene.add(yane_line)
 		} else {
 			mesh.position.set(mouse_on_y0plane.x, mouse_on_y0plane.y, mouse_on_y0plane.z);
 			// console.log(ref_point[0]);
@@ -521,7 +535,7 @@ function init() {
 			} else if (click_count == 1) {
 				ref_point[1] = mouse_on_y0plane.clone();
 				// ref_point[1] ... 最初に決めた点と対角線上にある地面上の点
-				for (let i=0; i<5*ishigaki_steps; i++) scene.add(ishigaki_line[i]);
+
 				click_count++;
 			} else if (click_count == 2) {
 				ref_point[3] = mouse_on_2pplane.clone();
@@ -533,15 +547,16 @@ function init() {
 				);
 				// ref_point[3] ... 0と1の点を通る、地面に垂直な平面上の点。石垣の上面の1と同じ側にある点
 				// ref_point[2] ... 3と対角線上にある点。石垣の上面の0と同じ側にある点
-				for (let i=0; i<5*ishigaki_steps; i++) scene.remove(ishigaki_line[i]);
-				BUILDING.render_ishigaki(
-					ref_point[0].clone(),
-					ref_point[1].clone(),
-					ref_point[2].clone(),
-					ref_point[3].clone(),
-					GEOMETRY
-				);
-				BUILDING.add_yagura_line();
+
+	// クラス試作
+	scene.remove(ishigaki_line)
+	const ishigaki = new BUILDING.Ishigaki(
+		ref_point[0].clone(),
+		ref_point[1].clone(),
+		ref_point[3].clone()
+	);
+	ishigaki.generate(GEOMETRY);
+	scene.add(ishigaki);
 				BUILDING.add_yane_line();
 				click_count++;
 			} else if (click_count == 3) {
@@ -556,21 +571,24 @@ function init() {
 					ref_point[5].y,
 					ref_point[3].z - (ref_point[5].z - ref_point[2].z)
 				);
-				BUILDING.render_yagura(
-					ref_point[2].clone(),
-					ref_point[3].clone(),
-					ref_point[4].clone(),
-					ref_point[5].clone(),
-					GEOMETRY
-				);
-				BUILDING.render_yane(
-					ref_point[2].clone(),
-					ref_point[3].clone(),
-					ref_point[4].clone(),
-					ref_point[5].clone(),
-					GEOMETRY
-				);
-				BUILDING.remove_yagura_line();
+	const yagura = new BUILDING.Yagura(
+		ref_point[2].clone(),
+		ref_point[3].clone(),
+		ref_point[5].clone()
+	);
+	yagura.generate(GEOMETRY);
+	scene.add(yagura);
+
+	scene.remove(yane_line)
+			const yane = new BUILDING.Yane(
+				ref_point[2].clone(),
+				ref_point[3].clone(),
+				mouse_on_2pplane.clone()
+			);
+			yane.generate(GEOMETRY);
+			scene.add(yane)
+				scene.remove(yagura_line);
+				// BUILDING.remove_yagura_line();
 				BUILDING.remove_all_yane_line();
 				click_count++;
 			} else if (click_count == 4) {
