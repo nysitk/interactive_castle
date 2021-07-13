@@ -112,8 +112,31 @@ class Ishigaki extends THREE.Group {
 
 				this.add(mesh);
 			} else if (MODE==GEOMETRY) {
-				const material = new THREE.MeshLambertMaterial({color: 0xB69F84});
 				const geometry = create_box(tmpA, tmpB, tmpC, tmpD);
+
+				for (let j = 0; j < geometry.faces.length; j++) {
+					// if (j == 0 || j == 1 || j == geometry.faces.length - 2 || j == geometry.faces.length - 1) continue;
+					
+					var down = 1/ishigaki_steps*i;
+					var up = 1/ishigaki_steps*(i+1);
+					if (j % 2 == 0) {
+						geometry.faceVertexUvs[0].push([
+							new THREE.Vector2(0.0, down),
+							new THREE.Vector2(1.0, down),
+							new THREE.Vector2(0.0, up)
+						])
+					} else {
+						geometry.faceVertexUvs[0].push([
+							new THREE.Vector2(1.0, down),
+							new THREE.Vector2(1.0, up),
+							new THREE.Vector2(0.0, up)
+						])
+					}
+				}
+
+				var textureLoader = new THREE.TextureLoader()
+				var texture = textureLoader.load('texture/ishigaki.png');
+				var material = new THREE.MeshStandardMaterial({map:texture})
 
 				const mesh = new THREE.Mesh(geometry, material);
 
@@ -162,9 +185,7 @@ class Yagura extends THREE.Group {
 			(this.D.y - this.B.y) / yagura_steps,
 			(this.D.z - this.B.z) / (yagura_steps - 1)
 		)
-	}
 
-	generate(MODE) {
 		var tmpA = this.A.clone();
 		var tmpB = this.B.clone();
 		var tmpC = new THREE.Vector3(
@@ -178,23 +199,10 @@ class Yagura extends THREE.Group {
 			this.B.z,
 		)
 
+		this.vertices = [];
+
 		for (let i = 0; i < yagura_steps; i++) {
-
-			if (MODE==LINE) {
-				const material = new THREE.LineBasicMaterial({color: 0xFFFFFF})
-				const geometry = create_line_box(tmpA, tmpB, tmpC, tmpD);
-
-				const mesh = new THREE.Line(geometry, material);
-
-				this.add(mesh);
-			} else if (MODE==GEOMETRY) {
-				const material = new THREE.MeshLambertMaterial({color: 0xCBC9D4});
-				const geometry = create_box(tmpA, tmpB, tmpC, tmpD);
-
-				const mesh = new THREE.Mesh(geometry, material);
-
-				this.add(mesh);
-			}
+			this.vertices.push({A: tmpA.clone(), B: tmpB.clone(), C: tmpC.clone(), D: tmpD.clone()});
 
 			tmpA.x -= this.change_level.x;
 			tmpA.y += this.change_level.y;
@@ -208,6 +216,37 @@ class Yagura extends THREE.Group {
 			tmpD.x += this.change_level.x;
 			tmpD.y += this.change_level.y;
 			tmpD.z += this.change_level.z;
+		}
+	}
+
+	generate(MODE) {
+		for (let i = 0; i < this.vertices.length; i++) {
+
+			if (MODE==LINE) {
+				const material = new THREE.LineBasicMaterial({color: 0xFFFFFF})
+				const geometry = create_line_box(
+					this.vertices[i].A,
+					this.vertices[i].B,
+					this.vertices[i].C,
+					this.vertices[i].D
+				);
+
+				const mesh = new THREE.Line(geometry, material);
+
+				this.add(mesh);
+			} else if (MODE==GEOMETRY) {
+				const material = new THREE.MeshBasicMaterial({color: 0xCBC9D4});
+				const geometry = create_box(
+					this.vertices[i].A,
+					this.vertices[i].B,
+					this.vertices[i].C,
+					this.vertices[i].D
+				);
+
+				const mesh = new THREE.Mesh(geometry, material);
+
+				this.add(mesh);
+			}
 		}
 	}
 }
@@ -215,54 +254,100 @@ class Yagura extends THREE.Group {
 class Yane extends Yagura {
 	constructor(R3, R4, R6) {
 		super(R3, R4, R6);
+		this.yane_vertices = [];
+
+		for (let i = 0; i < this.vertices.length - 1; i++) {
+
+			var tmpA = new THREE.Vector3(
+				this.vertices[i].A.x + this.change_level.x * yane_size_ratio.x,
+				this.vertices[i].A.y + this.change_level.y * 5 / 6 * yane_lower_position,
+				this.vertices[i].A.z + this.change_level.z * yane_size_ratio.z,
+			)
+			var tmpB = new THREE.Vector3(
+				this.vertices[i].B.x - this.change_level.x * yane_size_ratio.x,
+				this.vertices[i].B.y + this.change_level.y * 5 / 6 * yane_lower_position,
+				this.vertices[i].B.z - this.change_level.z * yane_size_ratio.z,
+			)
+			var tmpC = new THREE.Vector3(
+				this.vertices[i].A.x - this.change_level.x,
+				this.vertices[i].A.y + this.change_level.y * (5/6 * yane_upper_position + 3/6),
+				this.vertices[i].A.z - this.change_level.z,
+			)
+			var tmpD = new THREE.Vector3(
+				this.vertices[i].B.x + this.change_level.x,
+				this.vertices[i].B.y + this.change_level.y * (5/6 * yane_upper_position + 3/6),
+				this.vertices[i].B.z + this.change_level.z,
+			)
+
+			this.yane_vertices.push({A: tmpA.clone(), B: tmpB.clone(), C: tmpC.clone(), D: tmpD.clone()});
+		}
+
+		const top_vertices = this.vertices[this.vertices.length - 1];
+		var tmpA = new THREE.Vector3(
+			top_vertices.A.x + this.change_level.x * yane_size_ratio.x,
+			top_vertices.A.y + this.change_level.y * 5 / 6 * yane_lower_position,
+			top_vertices.A.z + this.change_level.z * yane_size_ratio.z,
+		)
+		var tmpB = new THREE.Vector3(
+			top_vertices.B.x - this.change_level.x * yane_size_ratio.x,
+			top_vertices.B.y + this.change_level.y * 5 / 6 * yane_lower_position,
+			top_vertices.B.z - this.change_level.z * yane_size_ratio.z,
+		)
+		var tmpC = new THREE.Vector3(
+			top_vertices.A.x,
+			top_vertices.A.y + this.change_level.y * (5/6 * yane_upper_position + 2/6),
+			top_vertices.A.z,
+		)
+		var tmpD = new THREE.Vector3(
+			top_vertices.B.x,
+			top_vertices.B.y + this.change_level.y * (5/6 * yane_upper_position + 2/6),
+			top_vertices.B.z,
+		)
+
+		this.top_yane_vertices = {A: tmpA.clone(), B: tmpB.clone(), C: tmpC.clone(), D: tmpD.clone()};
 	}
 
 	generate(MODE) {
 
-		var tmpA = new THREE.Vector3(
-			this.A.x + this.change_level.x * yane_size_ratio.x,
-			this.A.y + this.change_level.y * 5 / 6 * yane_lower_position,
-			this.A.z + this.change_level.z * yane_size_ratio.z,
-		)
-		var tmpB = new THREE.Vector3(
-			this.B.x - this.change_level.x * yane_size_ratio.x,
-			this.B.y + this.change_level.y * 5 / 6 * yane_lower_position,
-			this.B.z - this.change_level.z * yane_size_ratio.z,
-		)
-		var tmpC = new THREE.Vector3(
-			this.A.x - this.change_level.x,
-			this.A.y + this.change_level.y * (5/6 * yane_upper_position + 3/6),
-			this.A.z - this.change_level.z,
-		)
-		var tmpD = new THREE.Vector3(
-			this.B.x + this.change_level.x,
-			this.B.y + this.change_level.y * (5/6 * yane_upper_position + 3/6),
-			this.B.z + this.change_level.z,
-		)
+		for (let i = 0; i < this.vertices.length - 1; i++) {
 
-		for (let i = 0; i < yagura_steps; i++) {
-			const surrounding_yane = new SurroundingYane(tmpA, tmpB, tmpC, tmpD);
+			const surrounding_yane = new SurroundingYane(
+				this.yane_vertices[i].A,
+				this.yane_vertices[i].B,
+				this.yane_vertices[i].C,
+				this.yane_vertices[i].D
+			);
 
 			surrounding_yane.generate(MODE);
 
 			// 場所に応じて屋根を移動・回転
-			surrounding_yane.position.set(tmpA.x, tmpA.y, tmpA.z);
+			surrounding_yane.position.set(this.yane_vertices[i].A.x, this.yane_vertices[i].A.y, this.yane_vertices[i].A.z);
+			surrounding_yane.name = "surrounding_yane";
+			surrounding_yane.yagura_layer = i;
 			this.add(surrounding_yane)
 
-			tmpA.x -= this.change_level.x;
-			tmpA.y += this.change_level.y;
-			tmpA.z -= this.change_level.z;
-			tmpB.x += this.change_level.x;
-			tmpB.y += this.change_level.y;
-			tmpB.z += this.change_level.z;
-			tmpC.x -= this.change_level.x;
-			tmpC.y += this.change_level.y;
-			tmpC.z -= this.change_level.z;
-			tmpD.x += this.change_level.x;
-			tmpD.y += this.change_level.y;
-			tmpD.z += this.change_level.z;
-
+			if (i == 1) {
+				const chidori_hafu = new ChidoriHafu(
+					new THREE.Vector3(0, 0, (this.yane_vertices[i].B.x - this.yane_vertices[i].A.x) / 4),
+					new THREE.Vector3((this.yane_vertices[i].A.z - this.yane_vertices[i].C.z), 0, -(this.yane_vertices[i].B.x - this.yane_vertices[i].A.x) / 4),
+					new THREE.Vector3(0, (this.yane_vertices[i].C.y - this.yane_vertices[i].A.y) * 2, 0),
+					5);
+				chidori_hafu.generate(MODE);
+				chidori_hafu.rotation.y = Math.PI / 2;
+				chidori_hafu.position.set(this.yane_vertices[i].A.x + (this.yane_vertices[i].B.x - this.yane_vertices[i].A.x) * 3 / 4, this.yane_vertices[i].A.y, this.yane_vertices[i].A.z)
+				this.add(chidori_hafu)
+			}
 		}
+
+		const top_yane = new IrimoyaHafu(
+			this.top_yane_vertices.A,
+			this.top_yane_vertices.B,
+			this.top_yane_vertices.C,
+			this.top_yane_vertices.D
+		);
+		top_yane.generate(MODE);
+		top_yane.position.set(this.top_yane_vertices.A.x, this.top_yane_vertices.A.y, this.top_yane_vertices.A.z);
+		this.add(top_yane)
 	}
 }
 
@@ -313,6 +398,7 @@ class SurroundingYane extends THREE.Group {
 
 			each_yane.rotation.y = Math.PI / 2 * d;
 			each_yane.position.set(this.lower[d].x, this.lower[d].y, this.lower[d].z)
+			each_yane.name = "yane_component"
 			this.add(each_yane);
 		}
 	}
@@ -340,6 +426,7 @@ class YaneComponent extends THREE.Group {
 		this.D = new THREE.Vector3().subVectors(D, A).applyAxisAngle( axis, angle );
 
 		this.sei = sei;
+		this.direction = d;
 
 		this.taruki_interval = (this.B.x - this.D.x) / 6;
 		if (this.taruki_interval == 0.0) this.taruki_interval = 0.1;
@@ -374,6 +461,18 @@ class YaneComponent extends THREE.Group {
 			this.upper_vertices.push(new THREE.Vector3(bottom.x, bottom.y + this.C.y * chanz / change_level, bottom.z + chanz));
 
 			bottom.x += (this.B.x - this.A.x) / this.taruki_num;
+		}
+
+		var start = false;
+		for (let i = 0; i < this.lower_vertices.length; i++) {
+			if (start == false && this.lower_vertices[i].y == 0) {
+				this.flat_start = this.lower_vertices[i].clone();
+				start = true;
+			}
+			if (start == true && this.lower_vertices[i].y != 0) {
+				this.flat_end = this.lower_vertices[i-1].clone();
+				break;
+			}
 		}
 	}
 
@@ -414,8 +513,9 @@ class YaneComponent extends THREE.Group {
 			geometry.computeFaceNormals();
 			geometry.computeVertexNormals();
 
-			var material = new THREE.MeshLambertMaterial({color: 0x444444});
+			var material = new THREE.MeshBasicMaterial({color: 0x444444});
 			this.body = new THREE.Mesh(geometry, material);
+			this.body.name = "yane_body";
 			this.add(this.body);
 		}
 
@@ -448,8 +548,7 @@ class YaneComponent extends THREE.Group {
 					new THREE.Vector3(0, kawaraboh_thick, 0),
 					new THREE.Vector3(kawaraboh_thick, kawaraboh_thick, length)
 				)
-				console.log(kawaraboh_thick, length)
-				const material = new THREE.MeshLambertMaterial({color: 0x555555, side: THREE.DoubleSide});
+				const material = new THREE.MeshBasicMaterial({color: 0x555555, side: THREE.DoubleSide});
 
 				const mesh = new THREE.Mesh(geometry, material);
 
@@ -512,19 +611,130 @@ class YaneComponent extends THREE.Group {
 			geometry.computeFaceNormals();
 			geometry.computeVertexNormals();
 
-			var material = new THREE.MeshLambertMaterial({color: 0x999999});
+			var material = new THREE.MeshBasicMaterial({color: 0x999999});
 			this.kayaoi = new THREE.Mesh(geometry, material);
 			this.add(this.kayaoi);
 		}
 	}
 }
 
-class EachYane extends THREE.Line {
+class ChidoriHafu extends THREE.Group {
+	constructor(A, B, C, steps) {
+		super();
+
+		//     C----D    ^ y
+		//    /     /\   |
+		//   A--------B  --> x
+
+		this.A = new THREE.Vector3(0, 0, 0);
+		this.B = new THREE.Vector3().subVectors(B, A);
+		this.C = new THREE.Vector3().subVectors(C, A);
+
+		this.steps = steps;
+		this.L = Math.sqrt(Math.pow(this.C.z - this.A.z, 2) + Math.pow(this.C.y - this.A.y, 2));
+		this.theta = -1 * Math.atan((this.C.y - this.A.y) / (this.C.z - this.A.z));
+		this.alpha = 1/5;
+
+		this.origin_curve_vertices = [];
+
+		for (let i = 0; i <= this.steps*2; i++) {
+			var step = i <= this.steps ? i : this.steps*2 - i;
+			var tmpy = step * this.L / this.steps * (Math.sin(this.theta) - this.alpha * (this.steps - step) / this.steps * Math.cos(this.theta));
+			var tmpz = this.C.z / this.steps * i;
+			this.origin_curve_vertices.push(new THREE.Vector3(0, tmpy, tmpz))
+		}
+	}
+
+	generate(MODE) {
+		if (MODE==GEOMETRY) {
+			this.sideA = this.generate_side(MODE);
+			this.add(this.sideA);
+			this.sideB = this.generate_side(MODE);
+			this.sideB.position.set(this.B.x, 0, 0);
+			this.add(this.sideB);
+
+			this.top = this.generate_top(MODE);
+			this.add(this.top)
+		}
+
+	}
+
+	generate_side(MODE) {
+		if (MODE==GEOMETRY) {
+			const geometry = new THREE.Geometry();
+
+			for (let i = 0; i < this.origin_curve_vertices.length; i++) {
+				geometry.vertices.push(new THREE.Vector3(0, 0, this.origin_curve_vertices[i].z));
+				geometry.vertices.push(this.origin_curve_vertices[i]);
+			}
+
+			for (let i=0; i<this.steps*2; i++) {
+				geometry.faces.push(new THREE.Face3(i*2, i*2+1, i*2+2));
+				geometry.faces.push(new THREE.Face3(i*2+1, i*2+3, i*2+2));
+			}
+			geometry.computeFaceNormals();
+			geometry.computeVertexNormals();
+
+			const material = new THREE.MeshBasicMaterial({color: 0xCBC9D4, side: THREE.DoubleSide});
+
+			return new THREE.Mesh(geometry, material);
+		}
+	}
+
+	generate_top(MODE) {
+		if (MODE==GEOMETRY) {
+			const geometry = new THREE.Geometry();
+
+			for (let i = 0; i < this.origin_curve_vertices.length; i++) {
+				geometry.vertices.push(new THREE.Vector3(0, this.origin_curve_vertices[i].y, this.origin_curve_vertices[i].z));
+				geometry.vertices.push(new THREE.Vector3(this.B.x, this.origin_curve_vertices[i].y, this.origin_curve_vertices[i].z));
+			}
+
+			for (let i=0; i<this.steps*2; i++) {
+				geometry.faces.push(new THREE.Face3(i*2, i*2+1, i*2+2));
+				geometry.faces.push(new THREE.Face3(i*2+1, i*2+3, i*2+2));
+			}
+			geometry.computeFaceNormals();
+			geometry.computeVertexNormals();
+
+			const material = new THREE.MeshBasicMaterial({color: 0x444444, side: THREE.DoubleSide});
+
+			return new THREE.Mesh(geometry, material);
+
+		}
+	}
 }
 
-class EachYaneGeometry extends THREE.Geometry {
-	constructor() {
+class IrimoyaHafu extends THREE.Group {
+	constructor(A, B, C, D) {
 		super();
+
+		//     E----F    ^ y
+		//    /     /\   |
+		//   C--------D  --> x
+		//  /       |  \
+		// A------------B
+		this.steps = 5;
+
+		this.A = new THREE.Vector3(0, 0, 0);
+		this.B = new THREE.Vector3().subVectors(B, A);
+		this.C = new THREE.Vector3().subVectors(C, A);
+		this.D = new THREE.Vector3().subVectors(D, A);
+		this.E = new THREE.Vector3(0, this.C.y * 3, (this.C.z + this.D.z) / 2);
+		this.F = new THREE.Vector3(B.x, this.C.y * 3, (this.C.z + this.D.z) / 2)
+
+
+	}
+
+	generate(MODE) {
+
+		this.lower = new SurroundingYane(this.A, this.B, this.C, this.D);
+		this.lower.generate(MODE)
+		this.add(this.lower)
+		this.upper = new ChidoriHafu(this.C, this.D, this.E, this.steps);
+		this.upper.generate(MODE)
+		this.upper.position.set(this.C.x, this.C.y, this.C.z)
+		this.add(this.upper)
 	}
 }
 
@@ -625,4 +835,4 @@ function remove_all_yane() {
 	remove_irimoya();
 }
 
-export { Ishigaki, Yagura, Yane, add_yagura_line, remove_yagura_line, add_yane_line, remove_yane_line, remove_all_yane_line, add_taruki_line, remove_taruki_line, remove_irimoya_line, remove_hafu_line, remove_yagura, remove_yane, remove_all_yane };
+export { Ishigaki, Yagura, Yane, ChidoriHafu, add_yagura_line, remove_yagura_line, add_yane_line, remove_yane_line, remove_all_yane_line, add_taruki_line, remove_taruki_line, remove_irimoya_line, remove_hafu_line, remove_yagura, remove_yane, remove_all_yane };

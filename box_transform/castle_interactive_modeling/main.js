@@ -2,7 +2,7 @@ import * as THREE from '/build/three.module.js';
 
 import { GUI } from '../controls/dat.gui.module.js';
 import { Sky } from '../controls/Sky.js';
-import { OBJExporter } from '../controls/OBJExporter.js';
+import { OBJExporter, OBJExporterWithMtl } from '../controls/OBJExporter.js';
 
 import { OrbitControls } from '../controls/OrbitControls.js';
 import { TransformControls } from '../controls/TransformControls.js';
@@ -22,9 +22,11 @@ var ishigaki_geometry = new THREE.Mesh();
 var yagura_steps = 5;
 var yagura_line = [];
 var yagura_geometry = [];
+var yagura;
 // 屋根の補助線
 var yane_line = [];
 var yane_mesh = [];
+var yane;
 
 // 屋根の大きさの比率
 var yane_size_ratio = new THREE.Vector3(1.0, 1.0, 1.0);
@@ -46,22 +48,12 @@ var irimoya_line = [];
 var irimoya_geometry = [];
 // 千鳥破風の補助線
 var hafu_line = [];
-
-function calc(x) {
-	return x * 10;
-}
-class Sphere extends THREE.Mesh {
-	constructor(x, y, z) {
-		x = calc(x);
-		const geometry = new THREE.SphereGeometry(x, y, z);
-		const material = new THREE.MeshNormalMaterial();
-
-		super(geometry, material);
-	}
-}
-
+var chidori_hafu;
 
 var ref_point = new Array(5); // クリックした座標の保持
+
+var yane_body_intersect = undefined;
+var yane_body_editing = undefined;
 
 init();
 render();
@@ -80,20 +72,27 @@ const yaguraStepsOnChange = (e) => {
 
 	yagura_steps = e.target.value;
 
-	BUILDING.render_yagura(
+	if (yagura) {
+		scene.remove(yagura);
+	}
+	yagura = new BUILDING.Yagura(
 		ref_point[2].clone(),
 		ref_point[3].clone(),
-		ref_point[4].clone(),
 		ref_point[5].clone(),
-		GEOMETRY
 	);
-	BUILDING.render_yane(
+	yagura.generate(GEOMETRY);
+	scene.add(yagura);
+
+	if (yane) {
+		scene.remove(yane);
+	}
+	yane = new BUILDING.Yane(
 		ref_point[2].clone(),
 		ref_point[3].clone(),
-		ref_point[4].clone(),
 		ref_point[5].clone(),
-		GEOMETRY
 	);
+	yane.generate(GEOMETRY);
+	scene.add(yane);
 }
 
 const seiRatioInput = document.getElementById('sei-ratio');
@@ -109,13 +108,16 @@ const seiRatioOnChange = (e) => {
 
 	sei_ratio = e.target.value;
 
-	BUILDING.render_yane(
+	if (yane) {
+		scene.remove(yane);
+	}
+	yane = new BUILDING.Yane(
 		ref_point[2].clone(),
 		ref_point[3].clone(),
-		ref_point[4].clone(),
 		ref_point[5].clone(),
-		GEOMETRY
 	);
+	yane.generate(GEOMETRY);
+	scene.add(yane);
 }
 
 const yaneSizeRatioXInput = document.getElementById('yane-size-ratio-x');
@@ -131,13 +133,16 @@ const yaneSizeRatioXOnChange = (e) => {
 
 	yane_size_ratio.x = e.target.value;
 
-	BUILDING.render_yane(
+	if (yane) {
+		scene.remove(yane);
+	}
+	yane = new BUILDING.Yane(
 		ref_point[2].clone(),
 		ref_point[3].clone(),
-		ref_point[4].clone(),
 		ref_point[5].clone(),
-		GEOMETRY
 	);
+	yane.generate(GEOMETRY);
+	scene.add(yane);
 }
 
 const yaneSizeRatioZInput = document.getElementById('yane-size-ratio-z');
@@ -153,13 +158,16 @@ const yaneSizeRatioZOnChange = (e) => {
 
 	yane_size_ratio.z = e.target.value;
 
-	BUILDING.render_yane(
+	if (yane) {
+		scene.remove(yane);
+	}
+	yane = new BUILDING.Yane(
 		ref_point[2].clone(),
 		ref_point[3].clone(),
-		ref_point[4].clone(),
 		ref_point[5].clone(),
-		GEOMETRY
 	);
+	yane.generate(GEOMETRY);
+	scene.add(yane);
 }
 
 const yaneUpperPositionInput = document.getElementById('yane-upper-position');
@@ -175,13 +183,16 @@ const yaneUpperPositionOnChange = (e) => {
 
 	yane_upper_position = e.target.value;
 
-	BUILDING.render_yane(
+	if (yane) {
+		scene.remove(yane);
+	}
+	yane = new BUILDING.Yane(
 		ref_point[2].clone(),
 		ref_point[3].clone(),
-		ref_point[4].clone(),
 		ref_point[5].clone(),
-		GEOMETRY
 	);
+	yane.generate(GEOMETRY);
+	scene.add(yane);
 }
 
 const yaneLowerPositionInput = document.getElementById('yane-lower-position');
@@ -197,13 +208,16 @@ const yaneLowerPositionOnChange = (e) => {
 
 	yane_lower_position = e.target.value;
 
-	BUILDING.render_yane(
+	if (yane) {
+		scene.remove(yane);
+	}
+	yane = new BUILDING.Yane(
 		ref_point[2].clone(),
 		ref_point[3].clone(),
-		ref_point[4].clone(),
 		ref_point[5].clone(),
-		GEOMETRY
 	);
+	yane.generate(GEOMETRY);
+	scene.add(yane);
 }
 
 window.onload = () => {
@@ -267,6 +281,10 @@ function init() {
 	sky.scale.setScalar( 450000 );
 	scene.add( sky );
 
+	var directionalLight = new THREE.DirectionalLight(0xffffff);
+directionalLight.position.set(1, 1, 1).normalize();
+// scene.add(directionalLight);
+
 	var sun = new THREE.Vector3();
 
 	const effectController = {
@@ -316,15 +334,6 @@ function init() {
 	const texture = new THREE.TextureLoader().load( 'textures/crate.gif', render );
 	texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
 
-	// const geometry = new THREE.BoxBufferGeometry( 200, 200, 200 );
-	// const material = new THREE.MeshLambertMaterial( { map: texture, transparent: true } );
-
-	// // 直方体を作成
-	const material = new THREE.MeshNormalMaterial();
-	const geometry = new THREE.SphereGeometry(3, 3, 3);
-	const mesh = new THREE.Mesh(geometry, material);
-	// // scene.add(mesh);
-
 	orbit = new OrbitControls( currentCamera, renderer.domElement );
 	orbit.target.set(0, 100, 0)
 	orbit.update();
@@ -335,17 +344,17 @@ function init() {
 
 	control.addEventListener( 'dragging-changed', function ( event ) {
 
-	orbit.enabled = ! event.value;
+		orbit.enabled = ! event.value;
 
 	} );
 
 	// クリックしたときにあらわれる補助線
 	var line_geometry = new THREE.Geometry();
 	var rec_y0plane = new THREE.Line( line_geometry, new THREE.LineBasicMaterial({color: 0xFFFFFF}));
-	// var ishigaki_line = new Array(5 * ishigaki_steps);
 
 	var build_mode = false;
 	var edit_mode = false;
+	var sketch_mode = false;
 	var click_count = 0; // クリック回数のカウント
 	const mouse_on_y0plane = new THREE.Vector3(); // カメラからカーソルのレイとy=0の平面の交点
 	const mouse_on_2pplane = new THREE.Vector3(); // カメラからカーソルのレイと指定した2点を通るxz平面に垂直な平面の交点
@@ -354,7 +363,13 @@ function init() {
 	var currentObj = undefined;
 	var currentSquare = undefined;
 
-	window.onmousemove = function(e) {
+	const material = new THREE.MeshNormalMaterial();
+	const geometry = new THREE.SphereGeometry(3, 3, 3);
+	const mesh = new THREE.Mesh(geometry, material);
+	scene.add(mesh);
+
+	// カメラ位置からカーソル位置までの方向ベクトル
+	function getCameraToMouceRayVec(mouseX, mouseY) {
 		// 上向きベクトル算出
 		var t = new THREE.Vector3(0, 1, 0).applyMatrix4(currentCamera.matrixWorld);
 
@@ -368,23 +383,36 @@ function init() {
 		// 視点座標系の軸ベクトル
 		var axis_vec = new THREE.Vector3(u, v, w);
 
-		// canvas要素上のXY座標
-		const mouseX = e.clientX// - window.innerWidth / 2;
-		const mouseY = e.clientY// - window.innerHeight / 2;
-		// console.log(mouseX, mouseY, window.innerWidth, window.innerHeight);
-
 		var xs_dy = ((mouseX + 0) - window.innerWidth / 2.0) / window.innerHeight * 2 * Math.tan(currentCamera.fov / 2 * Math.PI / 180);
 		var xs_dy_u = new THREE.Vector3().copy(u).multiplyScalar(xs_dy);
 		var ys_dy = ((mouseY + 0) - window.innerHeight / 2.0) / window.innerHeight * 2 * Math.tan(currentCamera.fov / 2 * Math.PI / 180);
 		var ys_dy_v = new THREE.Vector3().copy(v).multiplyScalar(ys_dy);
 		// カメラ位置からカーソル位置までの方向ベクトル
 		var q = new THREE.Vector3().copy(xs_dy_u).add(ys_dy_v).add(w);
-		// console.log(q);
 
-		// qとy=0の平面との交点
-		var x_3d = -1 * currentCamera.position.y / q.y * q.x + currentCamera.position.x;
-		var z_3d = -1 * currentCamera.position.y / q.y * q.z + currentCamera.position.z;
-		mouse_on_y0plane.set(x_3d, 0, z_3d);
+		return q;
+	}
+
+	function getCameraToPlaneParam(start_point, vector, plane_normal, plane_point) {
+		// 直線の開始点、直線と平行なベクトル、平面の法線、平面上の1点
+		// 参考：http://www.etcnotes.info/almath/raycast_heimen.html、http://tau.doshisha.ac.jp/lectures/2008.intro-seminar/html.dir/node29.html
+		// 媒介変数t
+		return -1 * (plane_normal.x * (start_point.x - plane_point.x) + plane_normal.y * (start_point.y - plane_point.y) + plane_normal.z * (start_point.z - plane_point.z)) / (plane_normal.x * vector.x + plane_normal.y * vector.y + plane_normal.z * vector.z)
+	}
+
+	function getPointOnRayPlaneIntersection(start_point, mouse_position, plane_normal, plane_point) {
+		var q = getCameraToMouceRayVec(mouse_position.x, mouse_position.y);
+		var t = getCameraToPlaneParam(start_point, q, plane_normal, plane_point)
+		return new THREE.Vector3(q.x * t + start_point.x, q.y * t + start_point.y, q.z * t + start_point.z)
+	}
+
+	window.onmousemove = function(e) {
+
+		var mouse_pos = new THREE.Vector2(e.clientX, e.clientY)
+		var y0n = new THREE.Vector3(0, 1, 0); //平面の法線ベクトル
+		var y0p = new THREE.Vector3(0, 0, 0); //平面上の1点
+		var tmp = getPointOnRayPlaneIntersection(currentCamera.position, mouse_pos, y0n, y0p)
+		mouse_on_y0plane.set(tmp.x, tmp.y, tmp.z)
 
 		if (click_count == 1) {
 			var A = ref_point[0].clone(), B = mouse_on_y0plane.clone();
@@ -408,12 +436,8 @@ function init() {
 
 			// qと、平面の指定した2点を通りy軸に平行な平面との交点
 			// 媒介変数t
-			var t = (normal_2points.x * (ref_point[0].x - currentCamera.position.x) + normal_2points.z * (ref_point[0].z - currentCamera.position.z)) / (normal_2points.x * q.x + normal_2points.z * q.z);
-			mouse_on_2pplane.set(
-				q.x * t + currentCamera.position.x,
-				q.y * t + currentCamera.position.y,
-				q.z * t + currentCamera.position.z
-			);
+			var tmp = getPointOnRayPlaneIntersection(currentCamera.position, mouse_pos, normal_2points, ref_point[0])
+			mouse_on_2pplane.set(tmp.x, tmp.y, tmp.z);
 
 			scene.remove(ishigaki_line);
 			ishigaki_line = new BUILDING.Ishigaki(
@@ -426,29 +450,16 @@ function init() {
 
 		} else if (click_count == 3) {
 			// 平面の指定した2点を通り、y軸に平行な平面
-			var vec_2points = new THREE.Vector3(ref_point[1].x - ref_point[0].x, 0, ref_point[1].z - ref_point[0].z); // 2点間方向ベクトル
+			var vec_2points = new THREE.Vector3().subVectors(ref_point[1], ref_point[0])
 			var normal_2points = new THREE.Vector3(-1 * vec_2points.z, 0, vec_2points.x); // 2点間の方向ベクトルの法線ベクトル
 			// n = normal_2points、A = ref_point[0]とすると、直線の方程式は
 			// nx(x-Ax)+nz(z-Az)=0 (ny=0よりyについては省略)
 
 			// qと、平面の指定した2点を通りy軸に平行な平面との交点
-			// 媒介変数t
-			var t = (normal_2points.x * (ref_point[0].x - currentCamera.position.x) + normal_2points.z * (ref_point[0].z - currentCamera.position.z)) / (normal_2points.x * q.x + normal_2points.z * q.z);
+			var tmp = getPointOnRayPlaneIntersection(currentCamera.position, mouse_pos, normal_2points, ref_point[0])
 			mouse_on_2pplane.set(
-				q.x * t + currentCamera.position.x,
-				q.y * t + currentCamera.position.y,
-				q.z * t + currentCamera.position.z
+				tmp.x, tmp.y, tmp.z
 			);
-			mesh.position.set(mouse_on_2pplane.x, mouse_on_2pplane.y, mouse_on_2pplane.z);
-			// console.log(t);
-
-			// BUILDING.render_yagura(
-			// 	ref_point[2].clone(),
-			// 	ref_point[3].clone(),
-			// 	0,
-			// 	mouse_on_2pplane.clone(),
-			// 	LINE
-			// );
 			if (yagura_line) {
 				scene.remove(yagura_line);
 			}
@@ -460,6 +471,7 @@ function init() {
 			yagura_line.generate(LINE);
 			scene.add(yagura_line);
 
+			scene.remove(ishigaki_line)
 			if (yane_line) {
 				scene.remove(yane_line);
 			}
@@ -470,8 +482,60 @@ function init() {
 			);
 			yane_line.generate(LINE);
 			scene.add(yane_line)
+		} else if (click_count == 4) {
+		} else if (click_count == 5) {
+			var yagura_layer = yane_body_editing.parent.parent.yagura_layer;
+			var dir = yane_body_editing.parent.direction;
+			var yane_outer = [
+				yane.yane_vertices[yagura_layer].A.clone(),
+				yane.yane_vertices[yagura_layer].B.clone(),
+				yane.yane_vertices[yagura_layer].B.clone(),
+				yane.yane_vertices[yagura_layer].A.clone()
+			];
+
+			var init_vec = new THREE.Vector3(0, 0, 1);
+			var axis = new THREE.Vector3(0, 1, 0);
+			init_vec.applyAxisAngle(axis, Math.PI / 2 * dir);
+
+			// qと、平面の指定した2点を通りy軸に平行な平面との交点
+			var tmp = getPointOnRayPlaneIntersection(currentCamera.position, mouse_pos, init_vec, yane_outer[dir])
+			
+			var flat_start_tmp = yane_body_editing.parent.flat_start.clone();
+			flat_start_tmp.applyAxisAngle(axis, Math.PI / 2 * dir);
+			flat_start_tmp.add(yane_outer[dir]);
+			var flat_end_tmp = yane_body_editing.parent.flat_end.clone();
+			flat_end_tmp.applyAxisAngle(axis, Math.PI / 2 * dir);
+			flat_end_tmp.add(yane_outer[dir]);
+
+			var x = tmp.x, z = tmp.z;
+			// if (dir % 2 == 0) {
+			// 	if (x < flat_start_tmp.x) {
+			// 		x = flat_start_tmp.x;
+			// 	} else if (x > flat_end_tmp.x) {
+			// 		x = flat_end_tmp.x;
+			// 	}
+			// } else {
+			// 	console.log(flat_start_tmp, flat_end_tmp)
+			// 	if (z < flat_start_tmp.z) {
+			// 		z = flat_start_tmp.z;
+			// 	} else if (z > flat_end_tmp.z) {
+			// 		z = flat_end_tmp.z;
+			// 	}				
+			// }
+
+scene.remove(chidori_hafu);
+			chidori_hafu = new BUILDING.ChidoriHafu(
+					new THREE.Vector3(0, 0, (x - yane.yane_vertices[yagura_layer].A.x - (yane.yane_vertices[yagura_layer].B.x - yane.yane_vertices[yagura_layer].A.x)/2)),
+					new THREE.Vector3((yane.yane_vertices[yagura_layer].A.z - yane.yane_vertices[yagura_layer].C.z), 0, -(x - yane.yane_vertices[yagura_layer].A.x - (yane.yane_vertices[yagura_layer].B.x - yane.yane_vertices[yagura_layer].A.x)/2)),
+					new THREE.Vector3(0, (yane.yane_vertices[yagura_layer].C.y - yane.yane_vertices[yagura_layer].A.y) * 2, 0),
+					5);
+			chidori_hafu.generate(GEOMETRY);
+			chidori_hafu.rotation.y = Math.PI / 2;
+			chidori_hafu.position.set(x, yane.yane_vertices[yagura_layer].A.y, yane.yane_vertices[yagura_layer].A.z)
+			
+			scene.add(chidori_hafu)
+			mesh.position.set(x, yane_outer[dir].y, z)
 		} else {
-			mesh.position.set(mouse_on_y0plane.x, mouse_on_y0plane.y, mouse_on_y0plane.z);
 			// console.log(ref_point[0]);
 		}
 
@@ -480,43 +544,43 @@ function init() {
 			const element = e.target;
 			const width = element.offsetWidth;
 			const height = element.offsetHeight;
-			mouse.x = (mouseX / width) * 2 - 1;
-			mouse.y = -(mouseY / height) * 2 + 1;
+			mouse.x = (e.clientX / width) * 2 - 1;
+			mouse.y = -(e.clientY / height) * 2 + 1;
 
 			raycaster.setFromCamera(mouse, currentCamera);
-			const intersects = raycaster.intersectObjects(scene.children);
 
-			if (intersects.length > 0) {
-				var obj = intersects[0].object;
-				var square = intersects[0].faceIndex;
-
-				if (currentObj != obj || currentSquare != square) {
-					if (square !== undefined) {
-						if (currentObj && currentSquare) {
-							currentObj.geometry.colorsNeedUpdate = true;
-							currentObj.geometry.faces[currentSquare].color.set(0xCBC9D4);
-							if (currentSquare == 10) currentObj.geometry.faces[11].color.set(0xCBC9D4);
-							if (currentSquare == 11) currentObj.geometry.faces[10].color.set(0xCBC9D4);
+			if (click_count == 4) {
+				var yane_bodies = []
+				for (let i = 0; i < yane.children.length; i++) {
+					if (yane.children[i].name == "surrounding_yane") {
+						for (let j = 0; j < yane.children[i].children.length; j++) {
+							if (yane.children[i].children[j].name == "yane_component") {
+								for (let k = 0; k < yane.children[i].children[j].children.length; k++) {
+									if (yane.children[i].children[j].children[k].name == "yane_body") {
+										yane_bodies.push(yane.children[i].children[j].children[k]);
+									}
+								}
+							}
 						}
-
-						if (square == 10 || square == 11) {
-							obj.geometry.colorsNeedUpdate = true;
-							obj.geometry.faces[square].color.set(0x00ff00);
-							if (square == 10) obj.geometry.faces[11].color.set(0x00ff00);
-							if (square == 11) obj.geometry.faces[10].color.set(0x00ff00);
-						}
-
-						currentObj = obj;
-						currentSquare = square;
 					}
 				}
-			} else {
-				if (currentObj) {
-					currentObj.geometry.colorsNeedUpdate = true;
-					currentObj.geometry.faces[currentSquare].color.set(0xCBC9D4);
-					if (currentSquare == 10) currentObj.geometry.faces[11].color.set(0xCBC9D4);
-					if (currentSquare == 11) currentObj.geometry.faces[10].color.set(0xCBC9D4);
-				}
+				const intersects = raycaster.intersectObjects(yane_bodies);
+
+				yane_bodies.map((mesh) => {
+					if (intersects.length > 0 && mesh === intersects[0].object) {
+						mesh.material.color.setHex(0x774444);
+					} else {
+						mesh.material.color.setHex(0x444444);				
+					}
+
+					if (intersects.length > 0) {
+						yane_body_intersect = intersects[0].object;
+						$('html,body').css('cursor', 'pointer');
+					} else {
+						yane_body_intersect = undefined;
+						$('html,body').css('cursor', 'default');
+					}
+				})
 			}
 		}
 
@@ -548,15 +612,15 @@ function init() {
 				// ref_point[3] ... 0と1の点を通る、地面に垂直な平面上の点。石垣の上面の1と同じ側にある点
 				// ref_point[2] ... 3と対角線上にある点。石垣の上面の0と同じ側にある点
 
-	// クラス試作
-	scene.remove(ishigaki_line)
-	const ishigaki = new BUILDING.Ishigaki(
-		ref_point[0].clone(),
-		ref_point[1].clone(),
-		ref_point[3].clone()
-	);
-	ishigaki.generate(GEOMETRY);
-	scene.add(ishigaki);
+				// クラス試作
+				scene.remove(ishigaki_line)
+				const ishigaki = new BUILDING.Ishigaki(
+					ref_point[0].clone(),
+					ref_point[1].clone(),
+					ref_point[3].clone()
+				);
+				ishigaki.generate(GEOMETRY);
+				scene.add(ishigaki);
 				BUILDING.add_yane_line();
 				click_count++;
 			} else if (click_count == 3) {
@@ -571,31 +635,56 @@ function init() {
 					ref_point[5].y,
 					ref_point[3].z - (ref_point[5].z - ref_point[2].z)
 				);
-	const yagura = new BUILDING.Yagura(
-		ref_point[2].clone(),
-		ref_point[3].clone(),
-		ref_point[5].clone()
-	);
-	yagura.generate(GEOMETRY);
-	scene.add(yagura);
+				yagura = new BUILDING.Yagura(
+					ref_point[2].clone(),
+					ref_point[3].clone(),
+					ref_point[5].clone()
+				);
+				yagura.generate(GEOMETRY);
+				scene.add(yagura);
 
-	scene.remove(yane_line)
-			const yane = new BUILDING.Yane(
-				ref_point[2].clone(),
-				ref_point[3].clone(),
-				mouse_on_2pplane.clone()
-			);
-			yane.generate(GEOMETRY);
-			scene.add(yane)
+				scene.remove(yane_line)
+				yane = new BUILDING.Yane(
+					ref_point[2].clone(),
+					ref_point[3].clone(),
+					mouse_on_2pplane.clone()
+				);
+				yane.generate(GEOMETRY);
+				scene.add(yane)
 				scene.remove(yagura_line);
-				// BUILDING.remove_yagura_line();
-				BUILDING.remove_all_yane_line();
+
 				click_count++;
 			} else if (click_count == 4) {
+				yane_body_intersect.material.color.setHex(0x995555);
+				yane_body_editing = yane_body_intersect;
+				$('html,body').css('cursor', 'default');
 				click_count++;
 			} else if (click_count == 5) {
-				click_count++;
+				// click_count++;
 			}
+		}
+		if (edit_mode) {
+
+		}
+		if (sketch_mode) {
+
+			var q = getCameraToMouceRayVec(e.clientX, e.clientY)
+			// qとy=0の平面との交点
+			var x_3d = -1 * currentCamera.position.y / q.y * q.x + currentCamera.position.x;
+			var z_3d = -1 * currentCamera.position.y / q.y * q.z + currentCamera.position.z;
+
+			var curve = new THREE.QuadraticBezierCurve3(
+				new THREE.Vector3( -10, 0, 0 ),
+			    new THREE.Vector3( 10, 0, 0 ),
+			    new THREE.Vector3( x_3d, 0, z_3d )
+			);
+
+			var geometry = new THREE.Geometry();
+			geometry.vertices = curve.getPoints( 50 );
+			const material = new THREE.LineBasicMaterial( { color: 0xffffff } );
+
+			const line = new THREE.Line( geometry, material );
+			scene.add( line );
 		}
 	}, false);
 
@@ -775,8 +864,17 @@ function init() {
 		switch ( event.keyCode ) {
 			case 66: // B
 				build_mode = !build_mode;
+				sketch_mode = false;
 
 				console.log(build_mode);
+				// console.log(currentCamera.position)
+				break;
+
+			case 83: // S
+				sketch_mode = !sketch_mode;
+				build_mode = false;
+
+				console.log(sketch_mode);
 				// console.log(currentCamera.position)
 				break;
 
@@ -861,8 +959,6 @@ function init() {
 				break;
 
 			case 80: // P
-				exportToObj();
-				// console.log(ref_point);
 				break;
 
 			case 65: // A
@@ -871,13 +967,30 @@ function init() {
 				break;
 		}
 
+		document.getElementById("Export").addEventListener("click", function () {
+			exportToObj();
+		})
+
 		function exportToObj() {
 
-			const exporter = new OBJExporter();
+			const exporter = new OBJExporterWithMtl("castle");
 			scene.remove(mesh);
 			scene.remove(sky);
 			const result = exporter.parse( scene );
-			console.log(result);
+			var objblob = new Blob([result.obj], {"type": "text/plain"});
+			var mtlblob = new Blob([result.mtl], {"type": "text/plain"});
+			if (window.navigator.msSaveBlob) { 
+				window.navigator.msSaveBlob(objblob, "castle.obj");
+				window.navigator.msSaveBlob(mtlblob, "castle.mtl");
+				// msSaveOrOpenBlobの場合はファイルを保存せずに開ける
+				window.navigator.msSaveOrOpenBlob(objblob, "castle.obj"); 
+				window.navigator.msSaveOrOpenBlob(mtlblob, "castle.mtl"); 
+			} else {
+				document.getElementById("objExport").href = window.URL.createObjectURL(objblob);
+				document.getElementById("mtlExport").href = window.URL.createObjectURL(mtlblob);
+			}
+			scene.add(mesh);
+			scene.add(sky);
 
 		}
 
